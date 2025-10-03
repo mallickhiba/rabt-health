@@ -32,12 +32,6 @@ export async function speechToTextTranscription(input: SpeechToTextTranscription
   return speechToTextTranscriptionFlow(input);
 }
 
-const speechToTextPrompt = ai.definePrompt({
-  name: 'speechToTextPrompt',
-  input: {schema: SpeechToTextTranscriptionInputSchema},
-  prompt: `Transcribe the following audio: {{media url=audioDataUri}}`,
-});
-
 const speechToTextTranscriptionFlow = ai.defineFlow(
   {
     name: 'speechToTextTranscriptionFlow',
@@ -52,10 +46,13 @@ const speechToTextTranscriptionFlow = ai.defineFlow(
 
     // Prepare the multipart form data
     const formData = new FormData();
-    formData.append('model_id', modelId || 'string'); // Default model_id
-    formData.append('file', await fetch(input.audioDataUri).then(res => res.blob()), 'audio.webm'); // Ensure a file name is provided
-    formData.append('language_code', languageCode || '');
-    formData.append('use_multi_channel', useMultiChannel ? 'true' : 'false');
+    if(modelId) formData.append('model_id', modelId);
+    
+    const audioBlob = await fetch(input.audioDataUri).then(res => res.blob());
+    formData.append('file', audioBlob, 'audio.webm'); // Ensure a file name is provided
+    
+    if(languageCode) formData.append('language_code', languageCode);
+    if(useMultiChannel) formData.append('use_multi_channel', 'true');
 
     // Call the ElevenLabs API
     const response = await fetch(
@@ -70,7 +67,8 @@ const speechToTextTranscriptionFlow = ai.defineFlow(
     );
 
     if (!response.ok) {
-      throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText}`);
+        const errorBody = await response.text();
+        throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText} - ${errorBody}`);
     }
 
     const responseData = await response.json();
@@ -81,7 +79,9 @@ const speechToTextTranscriptionFlow = ai.defineFlow(
     } else if (responseData.text) {
       transcription = responseData.text;
     } else {
-      throw new Error('No transcription found in ElevenLabs API response.');
+      // It's possible to get a 200 OK with no transcription if the audio is empty.
+      // We will not throw an error, but return an empty transcription.
+      transcription = '';
     }
 
     return {transcription};
