@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A flow that uses the ElevenLabs API to transcribe audio input.
@@ -19,7 +20,7 @@ const SpeechToTextTranscriptionInputSchema = z.object({
   modelId: z.string().optional().describe('The ID of the transcription model to use.'),
   languageCode: z.string().optional().describe('The language code of the audio.'),
   useMultiChannel: z.boolean().optional().describe('Whether to process audio with multiple channels separately.'),
-  xiApiKey: z.string().describe('The ElevenLabs API key.'),
+  xiApiKey: z.string().optional().describe('The ElevenLabs API key.'),
 });
 export type SpeechToTextTranscriptionInput = z.infer<typeof SpeechToTextTranscriptionInputSchema>;
 
@@ -39,7 +40,10 @@ const speechToTextTranscriptionFlow = ai.defineFlow(
     outputSchema: SpeechToTextTranscriptionOutputSchema,
   },
   async input => {
-    const apiKey = input.xiApiKey;
+    const apiKey = input.xiApiKey || process.env.XI_API_KEY;
+    if (!apiKey) {
+      throw new Error('ElevenLabs API key not provided. Please set the XI_API_KEY environment variable.');
+    }
     const modelId = input.modelId;
     const languageCode = input.languageCode;
     const useMultiChannel = input.useMultiChannel;

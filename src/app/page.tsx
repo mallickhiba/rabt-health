@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
@@ -16,8 +17,6 @@ import { languages } from "@/lib/languages";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -39,7 +38,6 @@ type Message = {
 
 export default function LinguaBridgePage() {
     const { toast } = useToast();
-    const [apiKey, setApiKey] = useState("");
     const [langA, setLangA] = useState("en");
     const [langB, setLangB] = useState("es");
     const [conversation, setConversation] = useState<Message[]>([]);
@@ -59,15 +57,6 @@ export default function LinguaBridgePage() {
 
     const handleAudioProcessing = useCallback(
     async (blob: Blob, speaker: Speaker) => {
-        if (!apiKey) {
-            toast({
-              variant: "destructive",
-              title: "API Key Required",
-              description: "Please enter your ElevenLabs API key.",
-            });
-            return;
-        }
-
         setProcessingSpeaker(speaker);
 
         try {
@@ -83,7 +72,6 @@ export default function LinguaBridgePage() {
             const transcriptionResult = await speechToTextTranscription({
               audioDataUri,
               languageCode: sourceLang,
-              xiApiKey: apiKey,
               modelId: 'scribe_v1',
               useMultiChannel: false,
             });
@@ -125,13 +113,13 @@ export default function LinguaBridgePage() {
             toast({
               variant: "destructive",
               title: "An Error Occurred",
-              description: "Failed to process audio. Check your API key and console for details.",
+              description: "Failed to process audio. Check your console for details. You may need to set your API key.",
             });
         } finally {
             setProcessingSpeaker(null);
         }
     },
-    [apiKey, langA, langB, conversation, toast]
+    [langA, langB, conversation, toast]
   );
   
     const recorderA = useAudioRecorder((blob) => handleAudioProcessing(blob, "A"));
@@ -243,18 +231,6 @@ export default function LinguaBridgePage() {
                 <p className="text-muted-foreground mt-1">Real-time Translation for Seamless Conversations</p>
             </header>
 
-            <div className="w-full max-w-sm mx-auto space-y-2">
-                <Label htmlFor="api-key" className="font-medium">ElevenLabs API Key</Label>
-                <Input
-                    id="api-key"
-                    type="password"
-                    placeholder="Enter your API key..."
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    disabled={conversationStarted || !!processingSpeaker}
-                />
-            </div>
-            
             <div className="flex-grow grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] md:items-center gap-4 min-h-0">
                 {renderSpeakerPanel("A", langA, setLangA, recorderA)}
                 
