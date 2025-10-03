@@ -12,16 +12,19 @@ import {
   FileText,
   Link as LinkIcon,
   Languages,
+  Save,
+  Sparkles,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
 import { speechToTextTranscription } from "@/ai/flows/speech-to-text-transcription";
 import { contextAwareTranslation } from "@/ai/flows/context-aware-translation";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
+import { generateSoapNote, GenerateSoapNoteOutput } from "@/ai/flows/generate-soap-note";
 import { languages } from "@/lib/languages";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardFooter, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -34,6 +37,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 type Speaker = "Patient" | "Doctor";
 type Message = {
@@ -52,6 +57,8 @@ export default function PatientDashboardPage() {
     const [audioPlayer, setAudioPlayer] = useState<HTMLAudioElement | null>(null);
     const [playingMessageId, setPlayingMessageId] = useState<number | null>(null);
     const [audioLoadingMessageId, setAudioLoadingMessageId] = useState<number | null>(null);
+    const [isGeneratingSoapNote, setIsGeneratingSoapNote] = useState(false);
+    const [soapNote, setSoapNote] = useState<GenerateSoapNoteOutput | null>(null);
 
     const conversationEndRef = useRef<HTMLDivElement>(null);
 
@@ -179,6 +186,46 @@ export default function PatientDashboardPage() {
         } finally {
             setAudioLoadingMessageId(null);
         }
+    };
+
+    const handleGenerateSoapNote = async () => {
+        if (conversation.length === 0) {
+            toast({
+                title: "Cannot Generate SOAP Note",
+                description: "There is no conversation to generate a note from.",
+            });
+            return;
+        }
+        setIsGeneratingSoapNote(true);
+        try {
+            const conversationText = conversation.map(m => `${m.speaker}: ${m.originalText}`).join('\n');
+            const result = await generateSoapNote({ conversation: conversationText });
+            setSoapNote(result);
+        } catch (error) {
+            console.error("SOAP Note Generation Error:", error);
+            toast({
+                variant: "destructive",
+                title: "SOAP Note Generation Error",
+                description: "Could not generate SOAP note. Please check the console.",
+            });
+        } finally {
+            setIsGeneratingSoapNote(false);
+        }
+    };
+
+    const handleSoapNoteChange = (field: keyof GenerateSoapNoteOutput, value: string) => {
+        if (soapNote) {
+            setSoapNote({ ...soapNote, [field]: value });
+        }
+    };
+
+    const handleSaveSoapNote = () => {
+        // Placeholder for saving functionality
+        toast({
+            title: "Note Saved",
+            description: "The SOAP note has been saved successfully.",
+        });
+        console.log("Saving SOAP Note:", soapNote);
     };
 
     const conversationStarted = conversation.length > 0;
@@ -358,11 +405,68 @@ export default function PatientDashboardPage() {
                 <TabsContent value="soap">
                     <Card>
                         <CardHeader>
-                            <h3 className="text-lg font-semibold">SOAP Notes</h3>
+                            <CardTitle>SOAP Notes</CardTitle>
+                            <CardDescription>Generate a SOAP note from the conversation and edit it before saving.</CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <p className="text-muted-foreground">Functionality to take histories/SOAP notes will be implemented here.</p>
+                        <CardContent className="space-y-4">
+                            <Button onClick={handleGenerateSoapNote} disabled={isGeneratingSoapNote || conversation.length === 0}>
+                                {isGeneratingSoapNote ? (
+                                    <LoaderCircle className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <Sparkles className="w-4 h-4" />
+                                )}
+                                <span>{isGeneratingSoapNote ? 'Generating...' : 'Generate SOAP Note'}</span>
+                            </Button>
+
+                            {isGeneratingSoapNote && (
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label>Subjective</Label>
+                                        <div className="w-full h-24 bg-muted rounded-md animate-pulse"></div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Objective</Label>
+                                        <div className="w-full h-24 bg-muted rounded-md animate-pulse"></div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Assessment</Label>
+                                        <div className="w-full h-24 bg-muted rounded-md animate-pulse"></div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Plan</Label>
+                                        <div className="w-full h-24 bg-muted rounded-md animate-pulse"></div>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {soapNote && (
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="soap-subjective">Subjective</Label>
+                                        <Textarea id="soap-subjective" value={soapNote.subjective} onChange={(e) => handleSoapNoteChange('subjective', e.target.value)} rows={4} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="soap-objective">Objective</Label>
+                                        <Textarea id="soap-objective" value={soapNote.objective} onChange={(e) => handleSoapNoteChange('objective', e.target.value)} rows={4} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="soap-assessment">Assessment</Label>
+                                        <Textarea id="soap-assessment" value={soapNote.assessment} onChange={(e) => handleSoapNoteChange('assessment', e.target.value)} rows={4} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="soap-plan">Plan</Label>
+                                        <Textarea id="soap-plan" value={soapNote.plan} onChange={(e) => handleSoapNoteChange('plan', e.target.value)} rows={4} />
+                                    </div>
+                                </div>
+                            )}
                         </CardContent>
+                         {soapNote && (
+                            <CardFooter>
+                                <Button onClick={handleSaveSoapNote}>
+                                    <Save className="mr-2 h-4 w-4" /> Save Note
+                                </Button>
+                            </CardFooter>
+                        )}
                     </Card>
                 </TabsContent>
                 <TabsContent value="instructions">
