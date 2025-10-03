@@ -7,9 +7,11 @@ import {
   LoaderCircle,
   Mic,
   MicOff,
-  User,
   Play,
   Square,
+  FileText,
+  Link as LinkIcon,
+  Languages,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
@@ -19,7 +21,7 @@ import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { languages } from "@/lib/languages";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -28,10 +30,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 
-type Speaker = "A" | "B";
+type Speaker = "Patient" | "Doctor";
 type Message = {
   id: number;
   speaker: Speaker;
@@ -39,10 +43,10 @@ type Message = {
   translatedText: string;
 };
 
-export default function LinguaBridgePage() {
+export default function PatientDashboardPage() {
     const { toast } = useToast();
-    const [langA, setLangA] = useState("eng");
-    const [langB, setLangB] = useState("urd");
+    const [patientLang, setPatientLang] = useState("urd");
+    const [doctorLang, setDoctorLang] = useState("eng");
     const [conversation, setConversation] = useState<Message[]>([]);
     const [processingSpeaker, setProcessingSpeaker] = useState<Speaker | null>(null);
     const [audioPlayer, setAudioPlayer] = useState<HTMLAudioElement | null>(null);
@@ -62,7 +66,6 @@ export default function LinguaBridgePage() {
     }, [conversation]);
     
     useEffect(() => {
-        // Cleanup audio player on component unmount
         return () => {
             if (audioPlayer) {
                 audioPlayer.pause();
@@ -71,80 +74,78 @@ export default function LinguaBridgePage() {
         };
     }, [audioPlayer]);
 
-
     const handleAudioProcessing = useCallback(
-    async (blob: Blob, speaker: Speaker) => {
-        setProcessingSpeaker(speaker);
+      async (blob: Blob, speaker: Speaker) => {
+          setProcessingSpeaker(speaker);
 
-        try {
-            const audioDataUri = await new Promise<string>((resolve) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result as string);
-              reader.readAsDataURL(blob);
-            });
+          try {
+              const audioDataUri = await new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.readAsDataURL(blob);
+              });
 
-            const sourceLang = speaker === "A" ? langA : langB;
-            const targetLang = speaker === "A" ? langB : langA;
-            
-            const transcriptionResult = await speechToTextTranscription({
-              audioDataUri,
-              modelId: 'scribe_v1',
-              languageCode: sourceLang,
-              useMultiChannel: false,
-            });
+              const sourceLang = speaker === "Patient" ? patientLang : doctorLang;
+              const targetLang = speaker === "Patient" ? doctorLang : patientLang;
+              
+              const transcriptionResult = await speechToTextTranscription({
+                audioDataUri,
+                modelId: 'scribe_v1',
+                languageCode: sourceLang,
+              });
 
-            const originalText = transcriptionResult.transcription;
+              const originalText = transcriptionResult.transcription;
 
-            if (!originalText || originalText.trim().length === 0) {
-                toast({
-                    title: "Transcription Notice",
-                    description: "No speech detected or transcription was empty. Please try again.",
-                });
-                setProcessingSpeaker(null);
-                return;
-            }
+              if (!originalText || originalText.trim().length === 0) {
+                  toast({
+                      title: "Transcription Notice",
+                      description: "No speech detected or transcription was empty. Please try again.",
+                  });
+                  setProcessingSpeaker(null);
+                  return;
+              }
+              
+              const prevContext = conversation.slice(-3).map(m => `${m.speaker}: ${m.originalText}`).join('\n');
+              
+              const translationResult = await contextAwareTranslation({
+                text: originalText,
+                sourceLanguage: sourceLang,
+                targetLanguage: targetLang,
+                context: prevContext,
+              });
 
-            const prevContext = conversation.slice(-3).map(m => `${m.speaker === 'A' ? 'Person A' : 'Person B'}: ${m.originalText}`).join('\n');
-            
-            const translationResult = await contextAwareTranslation({
-              text: originalText,
-              sourceLanguage: sourceLang,
-              targetLanguage: targetLang,
-              context: prevContext,
-            });
+              const translatedText = translationResult.translation;
 
-            const translatedText = translationResult.translation;
+              setConversation((prev) => [
+                ...prev,
+                {
+                  id: Date.now(),
+                  speaker,
+                  originalText,
+                  translatedText,
+                },
+              ]);
 
-            setConversation((prev) => [
-              ...prev,
-              {
-                id: Date.now(),
-                speaker,
-                originalText,
-                translatedText,
-              },
-            ]);
-
-        } catch (error) {
-            console.error(error);
-            toast({
-              variant: "destructive",
-              title: "An Error Occurred",
-              description: "Failed to process audio. Check your console for details. You may need to set your API key.",
-            });
-        } finally {
-            setProcessingSpeaker(null);
-        }
-    },
-    [langA, langB, conversation, toast]
-  );
+          } catch (error) {
+              console.error(error);
+              toast({
+                variant: "destructive",
+                title: "An Error Occurred",
+                description: "Failed to process audio. Check your console for details. You may need to set your API key.",
+              });
+          } finally {
+              setProcessingSpeaker(null);
+          }
+      },
+      [patientLang, doctorLang, conversation, toast]
+    );
   
-    const recorderA = useAudioRecorder((blob) => handleAudioProcessing(blob, "A"));
-    const recorderB = useAudioRecorder((blob) => handleAudioProcessing(blob, "B"));
+    const recorderPatient = useAudioRecorder((blob) => handleAudioProcessing(blob, "Patient"));
+    const recorderDoctor = useAudioRecorder((blob) => handleAudioProcessing(blob, "Doctor"));
 
     const swapLanguages = () => {
-        setLangA(langB);
-        setLangB(langA);
+        setPatientLang(doctorLang);
+        setDoctorLang(patientLang);
     };
 
     const handlePlayAudio = async (text: string, messageId: number, langCode: string) => {
@@ -180,7 +181,6 @@ export default function LinguaBridgePage() {
         }
     };
 
-
     const conversationStarted = conversation.length > 0;
 
     const renderConversation = (perspective: Speaker) => (
@@ -189,46 +189,47 @@ export default function LinguaBridgePage() {
                 {conversation.map((msg) => {
                     const isPerspectiveSpeaker = msg.speaker === perspective;
                     const textToShow = isPerspectiveSpeaker ? msg.originalText : msg.translatedText;
-                    const bubbleAlignment = isPerspectiveSpeaker ? "flex-row-reverse" : "flex-row";
+                    const bubbleAlignment = isPerspectiveSpeaker ? "items-end" : "items-start";
                     const bubbleColor = isPerspectiveSpeaker ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
+                    const langCode = isPerspectiveSpeaker ? (perspective === 'Patient' ? patientLang : doctorLang) : (perspective === 'Patient' ? doctorLang : patientLang);
                     
-                    const langCode = isPerspectiveSpeaker ? (perspective === 'A' ? langA : langB) : (perspective === 'A' ? langB : langA);
-
                     const isPlaying = playingMessageId === msg.id;
                     const isLoadingAudio = audioLoadingMessageId === msg.id;
 
                     return (
-                        <div key={msg.id} className={`flex gap-3 ${bubbleAlignment} items-end`}>
-                            <Avatar className="self-start">
-                                <AvatarFallback>{msg.speaker}</AvatarFallback>
-                            </Avatar>
-                            <div className={`p-3 rounded-lg shadow-md max-w-[80%] ${bubbleColor}`}>
-                                <p>{textToShow}</p>
+                        <div key={msg.id} className={`flex flex-col gap-1 ${bubbleAlignment}`}>
+                            <div className="font-semibold text-sm">
+                                {msg.speaker}
                             </div>
-                             <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8"
-                                            onClick={() => handlePlayAudio(textToShow, msg.id, langCode)}
-                                            disabled={isLoadingAudio}
-                                        >
-                                            {isLoadingAudio ? (
-                                                <LoaderCircle className="w-4 h-4 animate-spin" />
-                                            ) : isPlaying ? (
-                                                <Square className="w-4 h-4" />
-                                            ) : (
-                                                <Play className="w-4 h-4" />
-                                            )}
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>{isPlaying ? "Stop" : "Play"}</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
+                            <div className={`flex gap-2 items-end ${isPerspectiveSpeaker ? 'flex-row-reverse' : 'flex-row'}`}>
+                                <div className={`p-3 rounded-lg shadow-md max-w-[80%] ${bubbleColor}`}>
+                                    <p>{textToShow}</p>
+                                </div>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8"
+                                                onClick={() => handlePlayAudio(textToShow, msg.id, langCode)}
+                                                disabled={isLoadingAudio}
+                                            >
+                                                {isLoadingAudio ? (
+                                                    <LoaderCircle className="w-4 h-4 animate-spin" />
+                                                ) : isPlaying ? (
+                                                    <Square className="w-4 h-4" />
+                                                ) : (
+                                                    <Play className="w-4 h-4" />
+                                                )}
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{isPlaying ? "Stop" : "Play"}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </div>
                         </div>
                     );
                 })}
@@ -245,16 +246,15 @@ export default function LinguaBridgePage() {
     ) => {
         const isRecording = recorder.isRecording;
         const isProcessing = processingSpeaker === speaker;
-        const otherIsRecording = speaker === 'A' ? recorderB.isRecording : recorderA.isRecording;
-        const buttonDisabled = !!processingSpeaker || otherIsRecording;
+        const otherRecorder = speaker === 'Patient' ? recorderDoctor : recorderPatient;
+        const buttonDisabled = !!processingSpeaker || otherRecorder.isRecording;
 
         return (
-            <Card className="flex flex-col h-full overflow-hidden">
+            <Card className="flex flex-col h-full overflow-hidden w-full">
                 <CardHeader className="flex-row items-center justify-between border-b">
-                    <CardTitle className="flex items-center gap-2 font-semibold">
-                        <User className="w-5 h-5"/>
-                        Speaker {speaker}
-                    </CardTitle>
+                    <h3 className="font-semibold">
+                        {speaker}
+                    </h3>
                     <Select value={lang} onValueChange={setLang} disabled={conversationStarted}>
                         <SelectTrigger className="w-[180px]">
                             <SelectValue placeholder="Select language" />
@@ -268,7 +268,7 @@ export default function LinguaBridgePage() {
                         </SelectContent>
                     </Select>
                 </CardHeader>
-                <CardContent className="flex-grow p-0 min-h-0">
+                <CardContent className="flex-grow p-0 min-h-[300px] bg-muted/20">
                     {renderConversation(speaker)}
                 </CardContent>
                 <CardFooter className="p-4 border-t">
@@ -290,7 +290,7 @@ export default function LinguaBridgePage() {
                                         <Mic className="w-6 h-6" />
                                     )}
                                     <span className="ml-2 font-medium">
-                                        {isProcessing ? "Processing..." : isRecording ? "Stop Recording" : "Start Recording"}
+                                        {isProcessing ? "Processing..." : isRecording ? `Stop (${speaker})` : `Record (${speaker})`}
                                     </span>
                                 </Button>
                             </TooltipTrigger>
@@ -305,32 +305,77 @@ export default function LinguaBridgePage() {
     };
 
     return (
-        <div className="flex flex-col h-screen p-4 md:p-6 lg:p-8 gap-4">
-            <header className="text-center">
-                <h1 className="text-4xl font-bold font-headline text-primary">LinguaBridge</h1>
-                <p className="text-muted-foreground mt-1">Real-time Translation for Seamless Conversations</p>
-            </header>
+        <div className="flex flex-col gap-4 w-full">
+            <Card>
+                <CardContent className="p-4 flex items-center gap-4">
+                    <Avatar className="h-16 w-16">
+                        <AvatarImage src="https://picsum.photos/seed/1/200/200" data-ai-hint="woman" alt="Aisha Khan" />
+                        <AvatarFallback>AK</AvatarFallback>
+                    </Avatar>
+                    <div>
+                        <h2 className="text-2xl font-bold">Aisha Khan</h2>
+                        <p className="text-muted-foreground">New Encounter Session</p>
+                        <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="outline">Pashto</Badge>
+                            <span className="text-sm text-muted-foreground">+923001234567</span>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
 
-            <div className="flex-grow grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] md:items-center gap-4 min-h-0">
-                {renderSpeakerPanel("A", langA, setLangA, recorderA)}
-                
-                <div className="hidden md:flex justify-center items-center">
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button variant="outline" size="icon" onClick={swapLanguages} disabled={conversationStarted}>
-                                    <ArrowRightLeft className="w-5 h-5" />
-                                </Button>
-                            </TooltipTrigger>
-                             <TooltipContent>
-                                <p>Swap Languages</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                </div>
+            <Tabs defaultValue="translation">
+                <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="translation"><Languages className="mr-2 h-4 w-4" /> Translation</TabsTrigger>
+                    <TabsTrigger value="soap"><FileText className="mr-2 h-4 w-4" /> SOAP Notes</TabsTrigger>
+                    <TabsTrigger value="instructions"><LinkIcon className="mr-2 h-4 w-4" /> Instructions</TabsTrigger>
+                </TabsList>
+                <TabsContent value="translation">
+                    <Card>
+                        <CardHeader>
+                            <h3 className="text-lg font-semibold">Real-Time Voice Translation</h3>
+                            <p className="text-sm text-muted-foreground">Translate patient's language to Urdu/English in real-time.</p>
+                        </CardHeader>
+                        <CardContent className="flex flex-col md:flex-row items-center gap-4">
+                            {renderSpeakerPanel("Patient", patientLang, setPatientLang, recorderPatient)}
+                            
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button variant="outline" size="icon" onClick={swapLanguages} disabled={conversationStarted}>
+                                            <ArrowRightLeft className="w-5 h-5" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Swap Languages</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
 
-                {renderSpeakerPanel("B", langB, setLangB, recorderB)}
-            </div>
+                            {renderSpeakerPanel("Doctor", doctorLang, setDoctorLang, recorderDoctor)}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="soap">
+                    <Card>
+                        <CardHeader>
+                            <h3 className="text-lg font-semibold">SOAP Notes</h3>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-muted-foreground">Functionality to take histories/SOAP notes will be implemented here.</p>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="instructions">
+                    <Card>
+                        <CardHeader>
+                           <h3 className="text-lg font-semibold">Instructions</h3>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-muted-foreground">Functionality to send instructions to patient's WhatsApp as a voice note will be implemented here.</p>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }

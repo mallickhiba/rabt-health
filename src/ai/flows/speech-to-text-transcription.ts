@@ -17,7 +17,7 @@ const SpeechToTextTranscriptionInputSchema = z.object({
     .describe(
       "Audio data as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
-  modelId: z.string().optional().describe('The ID of the transcription model to use.'),
+  modelId: z.string().describe('The ID of the transcription model to use.'),
   languageCode: z.string().optional().describe('The language code of the audio.'),
   useMultiChannel: z.boolean().optional().describe('Whether to process audio with multiple channels separately.'),
 });
