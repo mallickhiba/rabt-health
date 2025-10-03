@@ -14,6 +14,7 @@ import {
   Languages,
   Save,
   Sparkles,
+  Send,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
@@ -21,6 +22,7 @@ import { speechToTextTranscription } from "@/ai/flows/speech-to-text-transcripti
 import { contextAwareTranslation } from "@/ai/flows/context-aware-translation";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { generateSoapNote, GenerateSoapNoteOutput } from "@/ai/flows/generate-soap-note";
+import { clarifyAndGenerateInstructions, ClarifyAndGenerateInstructionsOutput } from "@/ai/flows/clarify-instructions";
 import { languages } from "@/lib/languages";
 
 import { Button } from "@/components/ui/button";
@@ -39,6 +41,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 
 type Speaker = "Patient" | "Doctor";
 type Message = {
@@ -47,6 +51,14 @@ type Message = {
   originalText: string;
   translatedText: string;
 };
+
+const commonInstructions = [
+    { id: "instr1", label: "Take medication with food" },
+    { id: "instr2", label: "Drink plenty of fluids" },
+    { id: "instr3", label: "Get at least 8 hours of rest per day" },
+    { id: "instr4", label: "Avoid strenuous activity" },
+    { id: "instr5", label: "Follow up in one week" },
+];
 
 export default function PatientDashboardPage() {
     const { toast } = useToast();
@@ -59,6 +71,12 @@ export default function PatientDashboardPage() {
     const [audioLoadingMessageId, setAudioLoadingMessageId] = useState<number | null>(null);
     const [isGeneratingSoapNote, setIsGeneratingSoapNote] = useState(false);
     const [soapNote, setSoapNote] = useState<GenerateSoapNoteOutput | null>(null);
+
+    const [selectedInstructions, setSelectedInstructions] = useState<string[]>([]);
+    const [isProcessingInstructions, setIsProcessingInstructions] = useState(false);
+    const [generatedInstructions, setGeneratedInstructions] = useState<ClarifyAndGenerateInstructionsOutput | null>(null);
+    const [instructionAudioPlayer, setInstructionAudioPlayer] = useState<HTMLAudioElement | null>(null);
+    const [isPlayingInstructions, setIsPlayingInstructions] = useState(false);
 
     const conversationEndRef = useRef<HTMLDivElement>(null);
 
@@ -78,8 +96,12 @@ export default function PatientDashboardPage() {
                 audioPlayer.pause();
                 setAudioPlayer(null);
             }
+            if (instructionAudioPlayer) {
+                instructionAudioPlayer.pause();
+                setInstructionAudioPlayer(null);
+            }
         };
-    }, [audioPlayer]);
+    }, [audioPlayer, instructionAudioPlayer]);
 
     const handleAudioProcessing = useCallback(
       async (blob: Blob, speaker: Speaker) => {
@@ -149,6 +171,36 @@ export default function PatientDashboardPage() {
   
     const recorderPatient = useAudioRecorder((blob) => handleAudioProcessing(blob, "Patient"));
     const recorderDoctor = useAudioRecorder((blob) => handleAudioProcessing(blob, "Doctor"));
+    const recorderInstructions = useAudioRecorder(async (blob) => {
+        setIsProcessingInstructions(true);
+        try {
+            const audioDataUri = await new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.readAsDataURL(blob);
+            });
+            const transcriptionResult = await speechToTextTranscription({
+                audioDataUri,
+                modelId: 'scribe_v1',
+                languageCode: doctorLang, // Assuming doctor records instructions in their language
+            });
+            const customInstruction = transcriptionResult.transcription;
+
+            const result = await clarifyAndGenerateInstructions({
+                selectedInstructions,
+                customInstruction,
+                patientLanguage: patientLang,
+            });
+            setGeneratedInstructions(result);
+            toast({ title: "Instructions Processed", description: "Instructions have been clarified and audio has been generated." });
+
+        } catch (error) {
+            console.error("Instruction Processing Error:", error);
+            toast({ variant: "destructive", title: "Instruction Processing Error" });
+        } finally {
+            setIsProcessingInstructions(false);
+        }
+    });
 
     const swapLanguages = () => {
         setPatientLang(doctorLang);
@@ -188,6 +240,28 @@ export default function PatientDashboardPage() {
         }
     };
 
+    const handlePlayInstructions = () => {
+        if (!generatedInstructions) return;
+
+        if (isPlayingInstructions && instructionAudioPlayer) {
+            instructionAudioPlayer.pause();
+            setIsPlayingInstructions(false);
+            return;
+        }
+
+        if (instructionAudioPlayer) {
+            instructionAudioPlayer.pause();
+        }
+        
+        const newAudio = new Audio(generatedInstructions.audioDataUri);
+        setInstructionAudioPlayer(newAudio);
+        setIsPlayingInstructions(true);
+        newAudio.play();
+        newAudio.onended = () => {
+            setIsPlayingInstructions(false);
+        };
+    };
+
     const handleGenerateSoapNote = async () => {
         if (conversation.length === 0) {
             toast({
@@ -212,6 +286,27 @@ export default function PatientDashboardPage() {
             setIsGeneratingSoapNote(false);
         }
     };
+    
+    const handleClarifyAndGenerateInstructions = async () => {
+        if (selectedInstructions.length === 0) {
+            toast({ title: "No instructions selected", description: "Please select at least one instruction." });
+            return;
+        }
+        setIsProcessingInstructions(true);
+        try {
+            const result = await clarifyAndGenerateInstructions({
+                selectedInstructions,
+                patientLanguage: patientLang,
+            });
+            setGeneratedInstructions(result);
+            toast({ title: "Instructions Processed", description: "Instructions have been clarified and audio has been generated." });
+        } catch (error) {
+             console.error("Instruction Processing Error:", error);
+            toast({ variant: "destructive", title: "Instruction Processing Error" });
+        } finally {
+            setIsProcessingInstructions(false);
+        }
+    };
 
     const handleSoapNoteChange = (field: keyof GenerateSoapNoteOutput, value: string) => {
         if (soapNote) {
@@ -226,6 +321,15 @@ export default function PatientDashboardPage() {
             description: "The SOAP note has been saved successfully.",
         });
         console.log("Saving SOAP Note:", soapNote);
+    };
+
+    const handleSendInstructions = () => {
+        // Placeholder for WhatsApp integration
+        toast({
+            title: "Instructions Sent (Simulated)",
+            description: `Text and audio sent to patient's WhatsApp.`,
+        });
+        console.log("Sending instructions:", generatedInstructions);
     };
 
     const conversationStarted = conversation.length > 0;
@@ -374,7 +478,7 @@ export default function PatientDashboardPage() {
                 <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="translation"><Languages className="mr-2 h-4 w-4" /> Translation</TabsTrigger>
                     <TabsTrigger value="soap"><FileText className="mr-2 h-4 w-4" /> SOAP Notes</TabsTrigger>
-                    <TabsTrigger value="instructions"><LinkIcon className="mr-2 h-4 w-4" /> Instructions</TabsTrigger>
+                    <TabsTrigger value="instructions"><Send className="mr-2 h-4 w-4" /> Instructions</TabsTrigger>
                 </TabsList>
                 <TabsContent value="translation">
                     <Card>
@@ -470,13 +574,102 @@ export default function PatientDashboardPage() {
                     </Card>
                 </TabsContent>
                 <TabsContent value="instructions">
-                    <Card>
+                <Card>
                         <CardHeader>
-                           <h3 className="text-lg font-semibold">Instructions</h3>
+                            <CardTitle>Patient Instructions</CardTitle>
+                            <CardDescription>
+                                Compile instructions, generate a voice note in the patient's language, and send it via WhatsApp.
+                            </CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <p className="text-muted-foreground">Functionality to send instructions to patient's WhatsApp as a voice note will be implemented here.</p>
+                        <CardContent className="space-y-6">
+                            <div className="space-y-4">
+                                <Label className="font-semibold">Common Instructions</Label>
+                                <div className="space-y-2">
+                                    {commonInstructions.map((item) => (
+                                        <div key={item.id} className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id={item.id}
+                                                onCheckedChange={(checked) => {
+                                                    setSelectedInstructions((prev) =>
+                                                        checked ? [...prev, item.label] : prev.filter((i) => i !== item.label)
+                                                    );
+                                                }}
+                                            />
+                                            <label htmlFor={item.id} className="text-sm font-medium leading-none">
+                                                {item.label}
+                                            </label>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <Label className="font-semibold">Custom Instructions</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    Record any additional instructions for the patient. This will be combined with the selected items above.
+                                </p>
+                                <Button
+                                    onClick={recorderInstructions.toggleRecording}
+                                    variant={recorderInstructions.isRecording ? "destructive" : "outline"}
+                                    disabled={isProcessingInstructions}
+                                >
+                                    {isProcessingInstructions ? (
+                                        <LoaderCircle className="w-4 h-4 animate-spin" />
+                                    ) : recorderInstructions.isRecording ? (
+                                        <MicOff className="w-4 h-4" />
+                                    ) : (
+                                        <Mic className="w-4 h-4" />
+                                    )}
+                                    <span className="ml-2">
+                                        {isProcessingInstructions
+                                            ? "Processing Audio..."
+                                            : recorderInstructions.isRecording
+                                            ? "Stop Recording"
+                                            : "Record Custom Instructions"}
+                                    </span>
+                                </Button>
+                                 <Button onClick={handleClarifyAndGenerateInstructions} disabled={isProcessingInstructions || selectedInstructions.length === 0}>
+                                    <Sparkles className="w-4 h-4" />
+                                    <span>Clarify & Generate</span>
+                                </Button>
+                            </div>
+
+                            {isProcessingInstructions && !generatedInstructions && (
+                                <div className="space-y-2">
+                                     <Label>Generated Instructions</Label>
+                                    <div className="w-full h-24 bg-muted rounded-md animate-pulse"></div>
+                                </div>
+                            )}
+
+                            {generatedInstructions && (
+                                <div className="space-y-4 rounded-md border p-4">
+                                    <Label className="font-semibold">Generated Instructions (Patient's Language: {languages.find(l => l.code === patientLang)?.name})</Label>
+                                    <p className="text-sm">{generatedInstructions.clarifiedText}</p>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            size="icon"
+                                            variant="outline"
+                                            onClick={handlePlayInstructions}
+                                            disabled={!generatedInstructions.audioDataUri}
+                                        >
+                                            {isPlayingInstructions ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                                        </Button>
+                                        <span className="text-sm text-muted-foreground">Play voice note</span>
+                                    </div>
+                                </div>
+                            )}
                         </CardContent>
+                        {generatedInstructions && (
+                            <CardFooter className="flex-col items-start gap-4">
+                                <div className="w-full space-y-2">
+                                    <Label htmlFor="whatsapp-number">Patient's WhatsApp Number</Label>
+                                    <Input id="whatsapp-number" defaultValue="+923001234567" />
+                                </div>
+                                <Button onClick={handleSendInstructions} size="lg">
+                                    <Send className="mr-2 h-4 w-4" /> Send to WhatsApp
+                                </Button>
+                            </CardFooter>
+                        )}
                     </Card>
                 </TabsContent>
             </Tabs>
