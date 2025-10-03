@@ -8,11 +8,14 @@ import {
   Mic,
   MicOff,
   User,
+  Play,
+  Square,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
 import { speechToTextTranscription } from "@/ai/flows/speech-to-text-transcription";
 import { contextAwareTranslation } from "@/ai/flows/context-aware-translation";
+import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { languages } from "@/lib/languages";
 
 import { Button } from "@/components/ui/button";
@@ -42,6 +45,9 @@ export default function LinguaBridgePage() {
     const [langB, setLangB] = useState("urd");
     const [conversation, setConversation] = useState<Message[]>([]);
     const [processingSpeaker, setProcessingSpeaker] = useState<Speaker | null>(null);
+    const [audioPlayer, setAudioPlayer] = useState<HTMLAudioElement | null>(null);
+    const [playingMessageId, setPlayingMessageId] = useState<number | null>(null);
+    const [audioLoadingMessageId, setAudioLoadingMessageId] = useState<number | null>(null);
 
     const conversationEndRef = useRef<HTMLDivElement>(null);
 
@@ -54,6 +60,17 @@ export default function LinguaBridgePage() {
             scrollToBottom();
         }
     }, [conversation]);
+    
+    useEffect(() => {
+        // Cleanup audio player on component unmount
+        return () => {
+            if (audioPlayer) {
+                audioPlayer.pause();
+                setAudioPlayer(null);
+            }
+        };
+    }, [audioPlayer]);
+
 
     const handleAudioProcessing = useCallback(
     async (blob: Blob, speaker: Speaker) => {
@@ -71,6 +88,7 @@ export default function LinguaBridgePage() {
             
             const transcriptionResult = await speechToTextTranscription({
               audioDataUri,
+              modelId: 'scribe_v1',
               languageCode: sourceLang,
               useMultiChannel: false,
             });
@@ -129,6 +147,40 @@ export default function LinguaBridgePage() {
         setLangB(langA);
     };
 
+    const handlePlayAudio = async (text: string, messageId: number, langCode: string) => {
+        if (playingMessageId === messageId && audioPlayer) {
+            audioPlayer.pause();
+            setPlayingMessageId(null);
+            return;
+        }
+
+        if (audioPlayer) {
+            audioPlayer.pause();
+        }
+
+        setAudioLoadingMessageId(messageId);
+        try {
+            const result = await textToSpeech({ text, modelId: 'eleven_multilingual_v2'});
+            const newAudio = new Audio(result.audioDataUri);
+            setAudioPlayer(newAudio);
+            setPlayingMessageId(messageId);
+            newAudio.play();
+            newAudio.onended = () => {
+                setPlayingMessageId(null);
+            };
+        } catch (error) {
+            console.error("TTS Error:", error);
+            toast({
+                variant: "destructive",
+                title: "Text-to-Speech Error",
+                description: "Could not play audio. Please check your API key and console.",
+            });
+        } finally {
+            setAudioLoadingMessageId(null);
+        }
+    };
+
+
     const conversationStarted = conversation.length > 0;
 
     const renderConversation = (perspective: Speaker) => (
@@ -139,15 +191,44 @@ export default function LinguaBridgePage() {
                     const textToShow = isPerspectiveSpeaker ? msg.originalText : msg.translatedText;
                     const bubbleAlignment = isPerspectiveSpeaker ? "flex-row-reverse" : "flex-row";
                     const bubbleColor = isPerspectiveSpeaker ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
+                    
+                    const langCode = isPerspectiveSpeaker ? (perspective === 'A' ? langA : langB) : (perspective === 'A' ? langB : langA);
+
+                    const isPlaying = playingMessageId === msg.id;
+                    const isLoadingAudio = audioLoadingMessageId === msg.id;
 
                     return (
-                        <div key={msg.id} className={`flex gap-3 ${bubbleAlignment}`}>
-                            <Avatar>
+                        <div key={msg.id} className={`flex gap-3 ${bubbleAlignment} items-end`}>
+                            <Avatar className="self-start">
                                 <AvatarFallback>{msg.speaker}</AvatarFallback>
                             </Avatar>
                             <div className={`p-3 rounded-lg shadow-md max-w-[80%] ${bubbleColor}`}>
                                 <p>{textToShow}</p>
                             </div>
+                             <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={() => handlePlayAudio(textToShow, msg.id, langCode)}
+                                            disabled={isLoadingAudio}
+                                        >
+                                            {isLoadingAudio ? (
+                                                <LoaderCircle className="w-4 h-4 animate-spin" />
+                                            ) : isPlaying ? (
+                                                <Square className="w-4 h-4" />
+                                            ) : (
+                                                <Play className="w-4 h-4" />
+                                            )}
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>{isPlaying ? "Stop" : "Play"}</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                         </div>
                     );
                 })}
