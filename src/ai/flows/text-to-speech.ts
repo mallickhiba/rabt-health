@@ -60,12 +60,9 @@ const textToSpeechFlow = ai.defineFlow(
     }
 
     const audioBlob = await response.blob();
-    const reader = new (FileReader as any)();
-    const dataUri = await new Promise<string>((resolve, reject) => {
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(audioBlob);
-    });
+    const audioBuffer = await audioBlob.arrayBuffer();
+    const audioBase64 = Buffer.from(audioBuffer).toString('base64');
+    const dataUri = `data:${audioBlob.type};base64,${audioBase64}`;
 
     return { audioDataUri: dataUri };
   }
