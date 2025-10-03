@@ -84,7 +84,7 @@ export default function LinguaBridgePage() {
               audioDataUri,
               languageCode: sourceLang,
               xiApiKey: apiKey,
-              modelId: 'eleven_multilingual_v2',
+              modelId: 'scribe_v1',
               useMultiChannel: false,
             });
 
