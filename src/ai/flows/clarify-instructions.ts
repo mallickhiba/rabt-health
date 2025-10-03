@@ -13,7 +13,7 @@ import { z } from 'genkit';
 import { textToSpeech } from './text-to-speech';
 
 const ClarifyAndGenerateInstructionsInputSchema = z.object({
-  selectedInstructions: z.array(z.string()).describe('A list of pre-defined instruction texts.'),
+  conversation: z.string().describe('The full transcript of the conversation between the doctor and patient.'),
   customInstruction: z.string().optional().describe('A transcript of a custom voice instruction from the doctor.'),
   patientLanguage: z.string().describe('The language code for the patient (e.g., "urd").'),
 });
@@ -40,11 +40,12 @@ const clarificationPrompt = ai.definePrompt({
     output: { schema: z.object({
         clarifiedInstructions: z.string(),
     })},
-    prompt: `You are a helpful medical assistant. Your task is to consolidate and clarify a list of instructions for a patient.
-Rephrase the instructions in a clear, simple, and encouraging tone.
-Translate the final instructions into the patient's language: {{patientLanguage}}.
+    prompt: `You are a helpful medical assistant. Your task is to consolidate, clarify, and simplify a list of medical instructions for a patient.
+Extract all instructions given by the doctor from the provided text.
+Rephrase the extracted instructions in a clear, simple, and encouraging tone.
+Translate the final, clarified instructions into the patient's language: {{patientLanguage}}.
 
-Instructions to clarify:
+Instructions to process:
 {{{instructions}}}
 
 Respond with only the clarified and translated instructions.`,
@@ -58,14 +59,10 @@ const clarifyAndGenerateInstructionsFlow = ai.defineFlow(
     outputSchema: ClarifyAndGenerateInstructionsOutputSchema,
   },
   async (input) => {
-    // 1. Combine all instructions into a single string.
-    const allInstructions = [...input.selectedInstructions];
-    if (input.customInstruction) {
-      allInstructions.push(input.customInstruction);
-    }
-    const combinedInstructions = allInstructions.join('\n- ');
+    // 1. Combine the conversation transcript and custom instructions.
+    const combinedInstructions = `${input.conversation}\n\nAdditional Instructions: ${input.customInstruction || 'None'}`;
 
-    // 2. Use an LLM to clarify and translate the text.
+    // 2. Use an LLM to extract, clarify, and translate the text.
     const { output } = await clarificationPrompt({
         instructions: combinedInstructions,
         patientLanguage: input.patientLanguage,
