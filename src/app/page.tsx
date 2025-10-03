@@ -38,8 +38,8 @@ type Message = {
 
 export default function LinguaBridgePage() {
     const { toast } = useToast();
-    const [langA, setLangA] = useState("en");
-    const [langB, setLangB] = useState("es");
+    const [langA, setLangA] = useState("eng");
+    const [langB, setLangB] = useState("urd");
     const [conversation, setConversation] = useState<Message[]>([]);
     const [processingSpeaker, setProcessingSpeaker] = useState<Speaker | null>(null);
 
@@ -72,7 +72,6 @@ export default function LinguaBridgePage() {
             const transcriptionResult = await speechToTextTranscription({
               audioDataUri,
               languageCode: sourceLang,
-              modelId: 'scribe_v1',
               useMultiChannel: false,
             });
 
