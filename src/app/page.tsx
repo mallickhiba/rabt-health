@@ -57,7 +57,7 @@ const patientData = {
     initials: "AK",
     language: "Pashto",
     languageCode: "pus",
-    phone: "+923001234567"
+    phone: "923328785640"
 }
 
 export default function PatientDashboardPage() {
@@ -700,3 +700,5 @@ export default function PatientDashboardPage() {
         </div>
     );
 }
+
+    

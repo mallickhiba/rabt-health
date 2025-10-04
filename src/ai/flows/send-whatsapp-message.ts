@@ -43,7 +43,10 @@ const sendWhatsAppMessageFlow = ai.defineFlow(
     const apiVersion = 'v23.0';
     const baseUrl = `https://graph.facebook.com/${apiVersion}/${businessPhoneNumberId}`;
     
-    console.log(`Starting WhatsApp flow for recipient: ${input.to}`);
+    // Sanitize the phone number
+    const sanitizedTo = input.to.replace(/[\s+-]/g, '');
+    
+    console.log(`Starting WhatsApp flow for recipient: ${sanitizedTo}`);
 
     // 1. Upload the audio to get a media ID
     console.log('Uploading audio to WhatsApp...');
@@ -88,7 +91,7 @@ const sendWhatsAppMessageFlow = ai.defineFlow(
         body: JSON.stringify({
             messaging_product: 'whatsapp',
             recipient_type: 'individual',
-            to: input.to,
+            to: sanitizedTo,
             type: 'text',
             text: {
                 preview_url: false,
@@ -116,7 +119,7 @@ const sendWhatsAppMessageFlow = ai.defineFlow(
       body: JSON.stringify({
         messaging_product: 'whatsapp',
         recipient_type: 'individual',
-        to: input.to,
+        to: sanitizedTo,
         type: 'audio',
         audio: {
           id: mediaId,
@@ -131,6 +134,8 @@ const sendWhatsAppMessageFlow = ai.defineFlow(
     }
     console.log('Audio message sent successfully. Response:', audioResponseBody);
 
-    console.log(`All messages sent successfully to ${input.to}`);
+    console.log(`All messages sent successfully to ${sanitizedTo}`);
   }
 );
+
+    
