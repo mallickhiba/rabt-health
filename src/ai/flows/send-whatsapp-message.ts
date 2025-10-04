@@ -6,6 +6,8 @@
  * - sendWhatsAppMessage - A function that handles sending the message.
  * - SendWhatsAppMessageInput - The input type for the function.
  */
+import { config } from 'dotenv';
+config();
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
