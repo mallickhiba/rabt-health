@@ -78,7 +78,7 @@ export default function PatientDashboardPage() {
     const [generatedInstructions, setGeneratedInstructions] = useState<ClarifyAndGenerateInstructionsOutput | null>(null);
     const [instructionAudioPlayer, setInstructionAudioPlayer] = useState<HTMLAudioElement | null>(null);
     const [isPlayingInstructions, setIsPlayingInstructions] = useState(false);
-    const [customInstructionText, setCustomInstructionText] = useState<string | undefined>(undefined);
+    const [customInstructionText, setCustomInstructionText] = useState<string>("");
     const [whatsAppNumber, setWhatsAppNumber] = useState(patientData.phone);
 
 
@@ -190,8 +190,8 @@ export default function PatientDashboardPage() {
             });
             
             const customInstruction = transcriptionResult.transcription;
-            setCustomInstructionText(customInstruction);
-            toast({ title: "Custom Instruction Recorded", description: "Ready to generate final instructions." });
+             setCustomInstructionText(prev => `${prev}\n${customInstruction}`.trim());
+            toast({ title: "Custom Instruction Recorded", description: "Your voice note has been transcribed and added to the instructions." });
 
         } catch (error) {
             console.error("Instruction Recording Error:", error);
@@ -489,7 +489,7 @@ export default function PatientDashboardPage() {
                         <h2 className="text-2xl font-bold">{patientData.name}</h2>
                         <p className="text-muted-foreground">New Encounter Session</p>
                         <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="outline">{patientData.language}</Badge>
+                            <Badge variant="outline">{languages.find(l => l.code === patientLang)?.name}</Badge>
                             <span className="text-sm text-muted-foreground">{patientData.phone}</span>
                         </div>
                     </div>
@@ -506,7 +506,7 @@ export default function PatientDashboardPage() {
                     <Card>
                         <CardHeader>
                             <h3 className="text-lg font-semibold">Real-Time Voice Translation</h3>
-                            <p className="text-sm text-muted-foreground">Translate patient's language to Urdu/English in real-time.</p>
+                            <p className="text-sm text-muted-foreground">Translate patient's language to doctor's language in real-time.</p>
                         </CardHeader>
                         <CardContent className="flex flex-col md:flex-row items-center gap-4">
                             {renderSpeakerPanel("Patient", patientLang, setPatientLang, recorderPatient)}
@@ -600,54 +600,69 @@ export default function PatientDashboardPage() {
                         <CardHeader>
                             <CardTitle>Patient Instructions</CardTitle>
                             <CardDescription>
-                                Instructions are automatically extracted from the conversation. Record additional info, then generate a clear voice note for the patient.
+                                Instructions are automatically extracted from the conversation. You can type or record additional info, then generate a clear voice note for the patient.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                             <div className="space-y-4">
-                                <Label className="font-semibold">1. Record Custom Instructions (Optional)</Label>
-                                <p className="text-sm text-muted-foreground">
-                                    Record any additional instructions. This will be combined with instructions from the conversation transcript.
-                                </p>
-                                <Button
-                                    onClick={recorderInstructions.toggleRecording}
-                                    variant={recorderInstructions.isRecording ? "destructive" : "outline"}
-                                    disabled={isProcessingInstructions || isSendingInstructions}
-                                >
-                                    {isProcessingInstructions && !recorderInstructions.isRecording ? (
-                                        <LoaderCircle className="w-4 h-4 animate-spin" />
-                                    ) : recorderInstructions.isRecording ? (
-                                        <MicOff className="w-4 h-4" />
-                                    ) : (
-                                        <Mic className="w-4 h-4" />
-                                    )}
-                                    <span className="ml-2">
-                                        {recorderInstructions.isRecording
-                                            ? "Stop Recording"
-                                            : "Record Custom Instructions"}
-                                    </span>
-                                </Button>
-                                {customInstructionText && (
-                                     <div className="p-3 rounded-md border bg-muted/50">
-                                        <p className="text-sm italic">{customInstructionText}</p>
-                                     </div>
-                                )}
-                            </div>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-4">
+                                    <Label className="font-semibold">1. Add Custom Instructions (Optional)</Label>
+                                    <p className="text-sm text-muted-foreground">
+                                        Type or record any additional instructions. This will be combined with instructions from the conversation transcript.
+                                    </p>
+                                    <Textarea
+                                        placeholder="Type custom instructions here..."
+                                        value={customInstructionText}
+                                        onChange={(e) => setCustomInstructionText(e.target.value)}
+                                        rows={4}
+                                        disabled={isProcessingInstructions || isSendingInstructions}
+                                    />
+                                    <Button
+                                        onClick={recorderInstructions.toggleRecording}
+                                        variant={recorderInstructions.isRecording ? "destructive" : "outline"}
+                                        disabled={isProcessingInstructions || isSendingInstructions}
+                                    >
+                                        {isProcessingInstructions && !recorderInstructions.isRecording ? (
+                                            <LoaderCircle className="w-4 h-4 animate-spin" />
+                                        ) : recorderInstructions.isRecording ? (
+                                            <MicOff className="w-4 h-4" />
+                                        ) : (
+                                            <Mic className="w-4 h-4" />
+                                        )}
+                                        <span className="ml-2">
+                                            {recorderInstructions.isRecording
+                                                ? "Stop Recording"
+                                                : "Record Custom Instructions"}
+                                        </span>
+                                    </Button>
+                                </div>
+                                <div className="space-y-4">
+                                     <Label className="font-semibold">2. Select Language & Generate</Label>
+                                    <p className="text-sm text-muted-foreground">
+                                        Choose the patient's language, then process the full conversation and any custom instructions to create a simplified, translated voice note.
+                                    </p>
+                                    <Select value={patientLang} onValueChange={setPatientLang} disabled={isProcessingInstructions || isSendingInstructions}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select patient's language" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {languages.map((l) => (
+                                                <SelectItem key={l.code} value={l.code}>
+                                                    {l.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                     <Button onClick={handleClarifyAndGenerateInstructions} disabled={isProcessingInstructions || conversation.length === 0 || isSendingInstructions}>
+                                        {isProcessingInstructions ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                                        <span className="ml-2">{isProcessingInstructions ? 'Generating...' : 'Clarify & Generate'}</span>
+                                    </Button>
+                                </div>
+                             </div>
 
-
-                            <div className="space-y-4">
-                                 <Label className="font-semibold">2. Generate & Review</Label>
-                                <p className="text-sm text-muted-foreground">
-                                    The AI will process the full conversation and any custom recordings to create a simplified, translated voice note.
-                                </p>
-                                 <Button onClick={handleClarifyAndGenerateInstructions} disabled={isProcessingInstructions || conversation.length === 0 || isSendingInstructions}>
-                                    {isProcessingInstructions ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                                    <span className="ml-2">{isProcessingInstructions ? 'Generating...' : 'Clarify & Generate Instructions'}</span>
-                                </Button>
-                            </div>
 
                             {(isProcessingInstructions || isSendingInstructions) && !generatedInstructions && (
-                                <div className="space-y-2">
+                                <div className="space-y-2 pt-4">
                                      <Label>Generated Instructions</Label>
                                     <div className="w-full h-24 bg-muted rounded-md animate-pulse"></div>
                                 </div>
@@ -689,3 +704,5 @@ export default function PatientDashboardPage() {
         </div>
     );
 }
+
+    
