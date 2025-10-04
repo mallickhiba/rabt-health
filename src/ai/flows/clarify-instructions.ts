@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A flow that clarifies medical instructions and generates a voice note.
@@ -13,8 +12,7 @@ import { z } from 'genkit';
 import { textToSpeech } from './text-to-speech';
 
 const ClarifyAndGenerateInstructionsInputSchema = z.object({
-  conversation: z.string().describe('The full transcript of the conversation between the doctor and patient.'),
-  customInstruction: z.string().optional().describe('A transcript of a custom voice instruction from the doctor.'),
+  customInstruction: z.string().describe('A transcript of a custom voice instruction from the doctor.'),
   patientLanguage: z.string().describe('The language code for the patient (e.g., "urd").'),
 });
 export type ClarifyAndGenerateInstructionsInput = z.infer<typeof ClarifyAndGenerateInstructionsInputSchema>;
@@ -40,15 +38,14 @@ const clarificationPrompt = ai.definePrompt({
     output: { schema: z.object({
         clarifiedInstructions: z.string(),
     })},
-    prompt: `You are a helpful medical assistant. Your task is to consolidate, clarify, and simplify a list of medical instructions for a patient.
-Extract all instructions given by the doctor from the provided text.
-Rephrase the extracted instructions in a clear, simple, and encouraging tone.
-Translate the final, clarified instructions into the patient's language: {{patientLanguage}}.
+    prompt: `You are a helpful medical assistant. Your task is to clarify and simplify a medical instruction for a patient.
+Rephrase the instruction in a clear, simple, and encouraging tone.
+Translate the final, clarified instruction into the patient's language: {{patientLanguage}}.
 
-Instructions to process:
+Instruction to process:
 {{{instructions}}}
 
-Respond with only the clarified and translated instructions.`,
+Respond with only the clarified and translated instruction.`,
 });
 
 
@@ -59,23 +56,21 @@ const clarifyAndGenerateInstructionsFlow = ai.defineFlow(
     outputSchema: ClarifyAndGenerateInstructionsOutputSchema,
   },
   async (input) => {
-    // 1. Combine the conversation transcript and custom instructions.
-    const combinedInstructions = `${input.conversation}\n\nAdditional Instructions: ${input.customInstruction || 'None'}`;
-
-    // 2. Use an LLM to extract, clarify, and translate the text.
+    
+    // 1. Use an LLM to clarify, and translate the text.
     const { output } = await clarificationPrompt({
-        instructions: combinedInstructions,
+        instructions: input.customInstruction,
         patientLanguage: input.patientLanguage,
     });
     const clarifiedText = output!.clarifiedInstructions;
 
-    // 3. Convert the clarified text to speech.
+    // 2. Convert the clarified text to speech.
     const ttsResult = await textToSpeech({
         text: clarifiedText,
         modelId: 'eleven_multilingual_v2', // Use a multilingual model
     });
 
-    // 4. Return the clarified text and the audio data.
+    // 3. Return the clarified text and the audio data.
     return {
       clarifiedText,
       audioDataUri: ttsResult.audioDataUri,

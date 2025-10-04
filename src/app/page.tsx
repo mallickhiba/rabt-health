@@ -80,6 +80,7 @@ export default function PatientDashboardPage() {
     const [isPlayingInstructions, setIsPlayingInstructions] = useState(false);
     const [customInstructionText, setCustomInstructionText] = useState<string>("");
     const [whatsAppNumber, setWhatsAppNumber] = useState(patientData.phone);
+    const [instructionLanguage, setInstructionLanguage] = useState(patientData.languageCode);
 
 
     const conversationEndRef = useRef<HTMLDivElement>(null);
@@ -191,7 +192,7 @@ export default function PatientDashboardPage() {
             
             const customInstruction = transcriptionResult.transcription;
              setCustomInstructionText(prev => `${prev}\n${customInstruction}`.trim());
-            toast({ title: "Custom Instruction Recorded", description: "Your voice note has been transcribed and added to the instructions." });
+            toast({ title: "Custom Instruction Recorded", description: "Your voice note has been transcribed and added." });
 
         } catch (error) {
             console.error("Instruction Recording Error:", error);
@@ -287,18 +288,16 @@ export default function PatientDashboardPage() {
     };
     
     const handleClarifyAndGenerateInstructions = async () => {
-        if (conversation.length === 0) {
-            toast({ title: "No conversation available", description: "Please have a conversation first to generate instructions." });
+        if (!customInstructionText.trim()) {
+            toast({ title: "No instructions provided", description: "Please type or record an instruction to send." });
             return;
         }
         setIsProcessingInstructions(true);
         setGeneratedInstructions(null);
         try {
-            const conversationText = conversation.map(m => `${m.speaker}: ${m.originalText}`).join('\n');
             const result = await clarifyAndGenerateInstructions({
-                conversation: conversationText,
                 customInstruction: customInstructionText,
-                patientLanguage: patientLang,
+                patientLanguage: instructionLanguage,
             });
             setGeneratedInstructions(result);
             toast({ title: "Instructions Processed", description: "Instructions have been clarified and audio has been generated." });
@@ -598,24 +597,21 @@ export default function PatientDashboardPage() {
                 <TabsContent value="instructions">
                 <Card>
                         <CardHeader>
-                            <CardTitle>Patient Instructions</CardTitle>
+                            <CardTitle>Send Patient Instructions</CardTitle>
                             <CardDescription>
-                                Instructions are automatically extracted from the conversation. You can type or record additional info, then generate a clear voice note for the patient.
+                                Type or record a custom message for the patient. The message will be clarified, translated, and sent via WhatsApp as both text and a voice note.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-4">
-                                    <Label className="font-semibold">1. Add Custom Instructions (Optional)</Label>
-                                    <p className="text-sm text-muted-foreground">
-                                        Type or record any additional instructions. This will be combined with instructions from the conversation transcript.
-                                    </p>
+                                    <Label className="font-semibold">1. Create Your Message</Label>
                                     <Textarea
                                         placeholder="Type custom instructions here..."
                                         value={customInstructionText}
                                         onChange={(e) => setCustomInstructionText(e.target.value)}
                                         rows={4}
-                                        disabled={isProcessingInstructions || isSendingInstructions || isRecordingCustomInstruction}
+                                        disabled={isProcessingInstructions || isSendingInstructions || recorderInstructions.isRecording}
                                     />
                                     <Button
                                         onClick={recorderInstructions.toggleRecording}
@@ -632,16 +628,16 @@ export default function PatientDashboardPage() {
                                         <span className="ml-2">
                                             {recorderInstructions.isRecording
                                                 ? "Stop Recording"
-                                                : "Record Custom Instructions"}
+                                                : "Record Instruction"}
                                         </span>
                                     </Button>
                                 </div>
                                 <div className="space-y-4">
                                      <Label className="font-semibold">2. Select Language &amp; Generate</Label>
                                     <p className="text-sm text-muted-foreground">
-                                        Choose the patient's language, then process the full conversation and any custom instructions to create a simplified, translated voice note.
+                                       Choose the patient's language, then generate a clear, translated voice note.
                                     </p>
-                                    <Select value={patientLang} onValueChange={setPatientLang} disabled={isProcessingInstructions || isSendingInstructions}>
+                                    <Select value={instructionLanguage} onValueChange={setInstructionLanguage} disabled={isProcessingInstructions || isSendingInstructions}>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Select patient's language" />
                                         </SelectTrigger>
@@ -653,7 +649,7 @@ export default function PatientDashboardPage() {
                                             ))}
                                         </SelectContent>
                                     </Select>
-                                     <Button onClick={handleClarifyAndGenerateInstructions} disabled={isProcessingInstructions || conversation.length === 0 || isSendingInstructions}>
+                                     <Button onClick={handleClarifyAndGenerateInstructions} disabled={isProcessingInstructions || !customInstructionText.trim() || isSendingInstructions}>
                                         {isProcessingInstructions ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                                         <span className="ml-2">{isProcessingInstructions ? 'Generating...' : 'Clarify &amp; Generate'}</span>
                                     </Button>
@@ -670,7 +666,7 @@ export default function PatientDashboardPage() {
 
                             {generatedInstructions && (
                                 <div className="space-y-4 rounded-md border p-4">
-                                    <Label className="font-semibold">Generated Instructions (Patient's Language: {languages.find(l => l.code === patientLang)?.name})</Label>
+                                    <Label className="font-semibold">Generated Instructions (Language: {languages.find(l => l.code === instructionLanguage)?.name})</Label>
                                     <p className="text-sm">{generatedInstructions.clarifiedText}</p>
                                     <div className="flex items-center gap-2">
                                         <Button
