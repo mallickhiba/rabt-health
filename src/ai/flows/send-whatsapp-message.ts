@@ -35,14 +35,18 @@ const sendWhatsAppMessageFlow = ai.defineFlow(
     const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
     const businessPhoneNumberId = process.env.WHATSAPP_BUSINESS_PHONE_NUMBER_ID;
 
-    if (!accessToken || !businessPhoneNumberId) {
+    if (!accessToken || !businessPhoneNumberId || businessPhoneNumberId === 'YOUR_WHATSAPP_BUSINESS_PHONE_NUMBER_ID') {
+      console.error('WhatsApp API credentials are not configured correctly in environment variables.');
       throw new Error('WhatsApp API credentials are not configured in environment variables.');
     }
 
     const apiVersion = 'v23.0';
     const baseUrl = `https://graph.facebook.com/${apiVersion}/${businessPhoneNumberId}`;
+    
+    console.log(`Starting WhatsApp flow for recipient: ${input.to}`);
 
     // 1. Upload the audio to get a media ID
+    console.log('Uploading audio to WhatsApp...');
     const audioBlob = await fetch(input.audioDataUri).then(res => res.blob());
     
     const uploadFormData = new FormData();
@@ -59,6 +63,7 @@ const sendWhatsAppMessageFlow = ai.defineFlow(
 
     if (!uploadResponse.ok) {
         const errorBody = await uploadResponse.text();
+        console.error('WhatsApp Media Upload API error response:', errorBody);
         throw new Error(`WhatsApp Media Upload API error: ${uploadResponse.status} ${uploadResponse.statusText} - ${errorBody}`);
     }
 
@@ -66,11 +71,15 @@ const sendWhatsAppMessageFlow = ai.defineFlow(
     const mediaId = uploadData.id;
 
     if(!mediaId) {
+        console.error('Failed to get media ID from WhatsApp upload response:', uploadData);
         throw new Error('Failed to get media ID from WhatsApp upload response.');
     }
+    console.log(`Successfully uploaded audio. Media ID: ${mediaId}`);
+
 
     // 2. Send the text message
-    await fetch(`${baseUrl}/messages`, {
+    console.log('Sending text message...');
+    const sendTextResponse = await fetch(`${baseUrl}/messages`, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${accessToken}`,
@@ -87,9 +96,17 @@ const sendWhatsAppMessageFlow = ai.defineFlow(
             },
         }),
     });
+    
+    const textResponseBody = await sendTextResponse.json();
+    if (!sendTextResponse.ok) {
+        console.error('WhatsApp Send Text API error response:', textResponseBody);
+        throw new Error(`WhatsApp Send Text API error: ${sendTextResponse.status} ${sendTextResponse.statusText} - ${JSON.stringify(textResponseBody)}`);
+    }
+    console.log('Text message sent successfully. Response:', textResponseBody);
 
 
     // 3. Send the audio message
+    console.log('Sending audio message...');
     const sendAudioResponse = await fetch(`${baseUrl}/messages`, {
       method: 'POST',
       headers: {
@@ -107,11 +124,13 @@ const sendWhatsAppMessageFlow = ai.defineFlow(
       }),
     });
 
-     if (!sendAudioResponse.ok) {
-        const errorBody = await sendAudioResponse.text();
-        throw new Error(`WhatsApp Send Audio API error: ${sendAudioResponse.status} ${sendAudioResponse.statusText} - ${errorBody}`);
+    const audioResponseBody = await sendAudioResponse.json();
+    if (!sendAudioResponse.ok) {
+        console.error('WhatsApp Send Audio API error response:', audioResponseBody);
+        throw new Error(`WhatsApp Send Audio API error: ${sendAudioResponse.status} ${sendAudioResponse.statusText} - ${JSON.stringify(audioResponseBody)}`);
     }
+    console.log('Audio message sent successfully. Response:', audioResponseBody);
 
-    console.log(`Messages sent successfully to ${input.to}`);
+    console.log(`All messages sent successfully to ${input.to}`);
   }
 );
