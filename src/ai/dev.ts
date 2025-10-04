@@ -8,3 +8,4 @@ import '@/ai/flows/context-aware-translation.ts';
 import '@/ai/flows/text-to-speech.ts';
 import '@/ai/flows/generate-soap-note.ts';
 import '@/ai/flows/clarify-instructions.ts';
+import '@/ai/flows/send-whatsapp-message.ts';

@@ -23,6 +23,7 @@ import { contextAwareTranslation } from "@/ai/flows/context-aware-translation";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { generateSoapNote, GenerateSoapNoteOutput } from "@/ai/flows/generate-soap-note";
 import { clarifyAndGenerateInstructions, ClarifyAndGenerateInstructionsOutput } from "@/ai/flows/clarify-instructions";
+import { sendWhatsAppMessage } from "@/ai/flows/send-whatsapp-message";
 import { languages } from "@/lib/languages";
 
 import { Button } from "@/components/ui/button";
@@ -41,7 +42,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 
 type Speaker = "Patient" | "Doctor";
@@ -52,9 +52,18 @@ type Message = {
   translatedText: string;
 };
 
+const patientData = {
+    name: "Aisha Khan",
+    avatar: "https://picsum.photos/seed/1/200/200",
+    initials: "AK",
+    language: "Pashto",
+    languageCode: "pus",
+    phone: "+923001234567"
+}
+
 export default function PatientDashboardPage() {
     const { toast } = useToast();
-    const [patientLang, setPatientLang] = useState("urd");
+    const [patientLang, setPatientLang] = useState(patientData.languageCode);
     const [doctorLang, setDoctorLang] = useState("eng");
     const [conversation, setConversation] = useState<Message[]>([]);
     const [processingSpeaker, setProcessingSpeaker] = useState<Speaker | null>(null);
@@ -65,10 +74,12 @@ export default function PatientDashboardPage() {
     const [soapNote, setSoapNote] = useState<GenerateSoapNoteOutput | null>(null);
 
     const [isProcessingInstructions, setIsProcessingInstructions] = useState(false);
+    const [isSendingInstructions, setIsSendingInstructions] = useState(false);
     const [generatedInstructions, setGeneratedInstructions] = useState<ClarifyAndGenerateInstructionsOutput | null>(null);
     const [instructionAudioPlayer, setInstructionAudioPlayer] = useState<HTMLAudioElement | null>(null);
     const [isPlayingInstructions, setIsPlayingInstructions] = useState(false);
     const [customInstructionText, setCustomInstructionText] = useState<string | undefined>(undefined);
+    const [whatsAppNumber, setWhatsAppNumber] = useState(patientData.phone);
 
 
     const conversationEndRef = useRef<HTMLDivElement>(null);
@@ -314,14 +325,34 @@ export default function PatientDashboardPage() {
         console.log("Saving SOAP Note:", soapNote);
     };
 
-    const handleSendInstructions = () => {
-        // Placeholder for WhatsApp integration
-        toast({
-            title: "Instructions Sent (Simulated)",
-            description: `Text and audio sent to patient's WhatsApp.`,
-        });
-        console.log("Sending instructions:", generatedInstructions);
+    const handleSendInstructions = async () => {
+        if (!generatedInstructions) {
+            toast({ title: "No instructions to send", description: "Please generate instructions first." });
+            return;
+        }
+        setIsSendingInstructions(true);
+        try {
+            await sendWhatsAppMessage({
+                to: whatsAppNumber,
+                text: generatedInstructions.clarifiedText,
+                audioDataUri: generatedInstructions.audioDataUri,
+            });
+            toast({
+                title: "Instructions Sent",
+                description: `Text and audio sent to ${whatsAppNumber}.`,
+            });
+        } catch (error) {
+            console.error("WhatsApp Sending Error:", error);
+            toast({
+                variant: "destructive",
+                title: "WhatsApp Sending Error",
+                description: "Could not send instructions. Check console and API keys.",
+            });
+        } finally {
+            setIsSendingInstructions(false);
+        }
     };
+
 
     const conversationStarted = conversation.length > 0;
 
@@ -451,15 +482,15 @@ export default function PatientDashboardPage() {
             <Card>
                 <CardContent className="p-4 flex items-center gap-4">
                     <Avatar className="h-16 w-16">
-                        <AvatarImage src="https://picsum.photos/seed/1/200/200" data-ai-hint="woman" alt="Aisha Khan" />
-                        <AvatarFallback>AK</AvatarFallback>
+                        <AvatarImage src={patientData.avatar} data-ai-hint="woman" alt={patientData.name} />
+                        <AvatarFallback>{patientData.initials}</AvatarFallback>
                     </Avatar>
                     <div>
-                        <h2 className="text-2xl font-bold">Aisha Khan</h2>
+                        <h2 className="text-2xl font-bold">{patientData.name}</h2>
                         <p className="text-muted-foreground">New Encounter Session</p>
                         <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="outline">Pashto</Badge>
-                            <span className="text-sm text-muted-foreground">+923001234567</span>
+                            <Badge variant="outline">{patientData.language}</Badge>
+                            <span className="text-sm text-muted-foreground">{patientData.phone}</span>
                         </div>
                     </div>
                 </CardContent>
@@ -581,7 +612,7 @@ export default function PatientDashboardPage() {
                                 <Button
                                     onClick={recorderInstructions.toggleRecording}
                                     variant={recorderInstructions.isRecording ? "destructive" : "outline"}
-                                    disabled={isProcessingInstructions}
+                                    disabled={isProcessingInstructions || isSendingInstructions}
                                 >
                                     {isProcessingInstructions && !recorderInstructions.isRecording ? (
                                         <LoaderCircle className="w-4 h-4 animate-spin" />
@@ -609,13 +640,13 @@ export default function PatientDashboardPage() {
                                 <p className="text-sm text-muted-foreground">
                                     The AI will process the full conversation and any custom recordings to create a simplified, translated voice note.
                                 </p>
-                                 <Button onClick={handleClarifyAndGenerateInstructions} disabled={isProcessingInstructions || conversation.length === 0}>
+                                 <Button onClick={handleClarifyAndGenerateInstructions} disabled={isProcessingInstructions || conversation.length === 0 || isSendingInstructions}>
                                     {isProcessingInstructions ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                                     <span className="ml-2">{isProcessingInstructions ? 'Generating...' : 'Clarify & Generate Instructions'}</span>
                                 </Button>
                             </div>
 
-                            {isProcessingInstructions && !generatedInstructions && (
+                            {(isProcessingInstructions || isSendingInstructions) && !generatedInstructions && (
                                 <div className="space-y-2">
                                      <Label>Generated Instructions</Label>
                                     <div className="w-full h-24 bg-muted rounded-md animate-pulse"></div>
@@ -631,7 +662,7 @@ export default function PatientDashboardPage() {
                                             size="icon"
                                             variant="outline"
                                             onClick={handlePlayInstructions}
-                                            disabled={!generatedInstructions.audioDataUri}
+                                            disabled={!generatedInstructions.audioDataUri || isSendingInstructions}
                                         >
                                             {isPlayingInstructions ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                                         </Button>
@@ -644,10 +675,11 @@ export default function PatientDashboardPage() {
                             <CardFooter className="flex-col items-start gap-4">
                                 <div className="w-full space-y-2">
                                     <Label htmlFor="whatsapp-number">3. Send to Patient</Label>
-                                    <Input id="whatsapp-number" defaultValue="+923001234567" />
+                                    <Input id="whatsapp-number" value={whatsAppNumber} onChange={(e) => setWhatsAppNumber(e.target.value)} disabled={isSendingInstructions} />
                                 </div>
-                                <Button onClick={handleSendInstructions} size="lg">
-                                    <Send className="mr-2 h-4 w-4" /> Send to WhatsApp
+                                <Button onClick={handleSendInstructions} size="lg" disabled={isSendingInstructions}>
+                                    {isSendingInstructions ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                                    <span className="ml-2">{isSendingInstructions ? 'Sending...' : 'Send to WhatsApp'}</span>
                                 </Button>
                             </CardFooter>
                         )}
