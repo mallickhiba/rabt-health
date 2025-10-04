@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
@@ -74,6 +73,7 @@ export default function PatientDashboardPage() {
     const [soapNote, setSoapNote] = useState<GenerateSoapNoteOutput | null>(null);
 
     const [isProcessingInstructions, setIsProcessingInstructions] = useState(false);
+    const [isRecordingCustomInstruction, setIsRecordingCustomInstruction] = useState(false);
     const [isSendingInstructions, setIsSendingInstructions] = useState(false);
     const [generatedInstructions, setGeneratedInstructions] = useState<ClarifyAndGenerateInstructionsOutput | null>(null);
     const [instructionAudioPlayer, setInstructionAudioPlayer] = useState<HTMLAudioElement | null>(null);
@@ -176,7 +176,7 @@ export default function PatientDashboardPage() {
     const recorderPatient = useAudioRecorder((blob) => handleAudioProcessing(blob, "Patient"));
     const recorderDoctor = useAudioRecorder((blob) => handleAudioProcessing(blob, "Doctor"));
     const recorderInstructions = useAudioRecorder(async (blob) => {
-        setIsProcessingInstructions(true);
+        setIsRecordingCustomInstruction(true);
         try {
             const audioDataUri = await new Promise<string>((resolve) => {
                 const reader = new FileReader();
@@ -197,7 +197,7 @@ export default function PatientDashboardPage() {
             console.error("Instruction Recording Error:", error);
             toast({ variant: "destructive", title: "Instruction Recording Error" });
         } finally {
-            setIsProcessingInstructions(false);
+            setIsRecordingCustomInstruction(false);
         }
     });
 
@@ -615,14 +615,14 @@ export default function PatientDashboardPage() {
                                         value={customInstructionText}
                                         onChange={(e) => setCustomInstructionText(e.target.value)}
                                         rows={4}
-                                        disabled={isProcessingInstructions || isSendingInstructions}
+                                        disabled={isProcessingInstructions || isSendingInstructions || isRecordingCustomInstruction}
                                     />
                                     <Button
                                         onClick={recorderInstructions.toggleRecording}
                                         variant={recorderInstructions.isRecording ? "destructive" : "outline"}
                                         disabled={isProcessingInstructions || isSendingInstructions}
                                     >
-                                        {isProcessingInstructions && !recorderInstructions.isRecording ? (
+                                        {isRecordingCustomInstruction ? (
                                             <LoaderCircle className="w-4 h-4 animate-spin" />
                                         ) : recorderInstructions.isRecording ? (
                                             <MicOff className="w-4 h-4" />
@@ -637,7 +637,7 @@ export default function PatientDashboardPage() {
                                     </Button>
                                 </div>
                                 <div className="space-y-4">
-                                     <Label className="font-semibold">2. Select Language & Generate</Label>
+                                     <Label className="font-semibold">2. Select Language &amp; Generate</Label>
                                     <p className="text-sm text-muted-foreground">
                                         Choose the patient's language, then process the full conversation and any custom instructions to create a simplified, translated voice note.
                                     </p>
@@ -655,7 +655,7 @@ export default function PatientDashboardPage() {
                                     </Select>
                                      <Button onClick={handleClarifyAndGenerateInstructions} disabled={isProcessingInstructions || conversation.length === 0 || isSendingInstructions}>
                                         {isProcessingInstructions ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                                        <span className="ml-2">{isProcessingInstructions ? 'Generating...' : 'Clarify & Generate'}</span>
+                                        <span className="ml-2">{isProcessingInstructions ? 'Generating...' : 'Clarify &amp; Generate'}</span>
                                     </Button>
                                 </div>
                              </div>
@@ -704,5 +704,3 @@ export default function PatientDashboardPage() {
         </div>
     );
 }
-
-    
