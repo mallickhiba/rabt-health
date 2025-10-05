@@ -57,7 +57,7 @@ export function NewPatientForm() {
     },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  function onSubmit(values: z.infer<typeof formSchema>) {
     if (!user || !firestore) {
       toast({
         variant: 'destructive',
@@ -67,26 +67,35 @@ export function NewPatientForm() {
       return;
     }
     setIsSubmitting(true);
-    try {
-      const patientsCollection = collection(firestore, `users/${user.uid}/patients`);
-      await addDocumentNonBlocking(patientsCollection, values);
-
-      toast({
-        title: 'Patient Created',
-        description: `${values.name} has been added to your patient list.`,
+    
+    const patientsCollection = collection(firestore, `users/${user.uid}/patients`);
+    
+    // Use the non-blocking update and handle success/error via promise chaining
+    addDocumentNonBlocking(patientsCollection, values)
+      .then(() => {
+        // Success case
+        toast({
+          title: 'Patient Created',
+          description: `${values.name} has been added to your patient list.`,
+        });
+        form.reset();
+        setIsOpen(false);
+      })
+      .catch((error) => {
+        // The permission error is already being emitted by addDocumentNonBlocking.
+        // We only need to show a generic toast here for other potential errors.
+        // This avoids logging the raw error to the console.
+        if (error.name !== 'FirebaseError') {
+             toast({
+                variant: 'destructive',
+                title: 'Uh oh! Something went wrong.',
+                description: 'There was a problem creating the patient.',
+            });
+        }
+      })
+      .finally(() => {
+        setIsSubmitting(false);
       });
-      form.reset();
-      setIsOpen(false);
-    } catch (error) {
-      console.error('Error creating patient:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Uh oh! Something went wrong.',
-        description: 'There was a problem creating the patient.',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
   }
 
   return (
