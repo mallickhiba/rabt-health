@@ -9,7 +9,7 @@ import Link from 'next/link';
 
 export const metadata: Metadata = {
   title: 'Rabt Health',
-  description: 'A doctor-facing mobile application that breaks language barriers in healthcare.',
+  description: 'A doctor-facing that breaks language barriers in Pakistani healthcare.',
 };
 
 export default function RootLayout({
@@ -72,7 +72,7 @@ export default function RootLayout({
           <SidebarInset>
             <header className="flex h-12 items-center justify-between border-b bg-background px-4 md:pl-2">
               <SidebarTrigger />
-              <p className="font-semibold">Patient Dashboard</p>
+              <p className="font-semibold"></p>
             </header>
             <main className="flex-1 overflow-y-auto p-4">{children}</main>
           </SidebarInset>

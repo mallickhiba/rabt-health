@@ -1,0 +1,260 @@
+{
+  "entities": {
+    "Patient": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Patient",
+      "type": "object",
+      "description": "Represents a patient with their personal information and medical history.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the patient."
+        },
+        "name": {
+          "type": "string",
+          "description": "The patient's full name."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "The patient's phone number."
+        },
+        "language": {
+          "type": "string",
+          "description": "The patient's preferred language."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "phoneNumber",
+        "language"
+      ]
+    },
+    "Transcript": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Transcript",
+      "type": "object",
+      "description": "Represents a transcription of a conversation with a patient.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the transcript."
+        },
+        "patientId": {
+          "type": "string",
+          "description": "Reference to the Patient. (Relationship: Patient 1:N Transcript)"
+        },
+        "text": {
+          "type": "string",
+          "description": "The transcribed text."
+        },
+        "languageCode": {
+          "type": "string",
+          "description": "The language code of the transcribed text (e.g., 'en-US', 'es-ES')."
+        },
+        "audioFileUrl": {
+          "type": "string",
+          "description": "URL of the audio file used for transcription, if available.",
+          "format": "uri"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the transcript was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "patientId",
+        "text",
+        "languageCode",
+        "createdAt"
+      ]
+    },
+    "SoapNote": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SoapNote",
+      "type": "object",
+      "description": "Represents a SOAP (Subjective, Objective, Assessment, Plan) note for a patient encounter.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the SOAP note."
+        },
+        "patientId": {
+          "type": "string",
+          "description": "Reference to the Patient. (Relationship: Patient 1:N SoapNote)"
+        },
+        "subjective": {
+          "type": "string",
+          "description": "Subjective observations from the patient."
+        },
+        "objective": {
+          "type": "string",
+          "description": "Objective findings from the examination."
+        },
+        "assessment": {
+          "type": "string",
+          "description": "Assessment of the patient's condition."
+        },
+        "plan": {
+          "type": "string",
+          "description": "Plan of action for the patient."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the SOAP note was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "patientId",
+        "subjective",
+        "objective",
+        "assessment",
+        "plan",
+        "createdAt"
+      ]
+    },
+    "Instruction": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Instruction",
+      "type": "object",
+      "description": "Represents instructions sent to a patient.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the instruction."
+        },
+        "patientId": {
+          "type": "string",
+          "description": "Reference to the Patient. (Relationship: Patient 1:N Instruction)"
+        },
+        "text": {
+          "type": "string",
+          "description": "The instruction text."
+        },
+        "sentAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the instruction was sent.",
+          "format": "date-time"
+        },
+        "method": {
+          "type": "string",
+          "description": "The method by which the instruction was sent (e.g., 'SMS', 'Email', 'In-Person')."
+        }
+      },
+      "required": [
+        "id",
+        "patientId",
+        "text",
+        "sentAt",
+        "method"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}/patients/{patientId}",
+        "definition": {
+          "entityName": "Patient",
+          "schema": {
+            "$ref": "#/backend/entities/Patient"
+          },
+          "description": "Stores patient information.  Path-based ownership is enforced via the userId.  The userId param is equal to request.auth().uid",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The ID of the user who owns the patient data. (request.auth.uid)"
+            },
+            {
+              "name": "patientId",
+              "description": "The unique ID of the patient."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/patients/{patientId}/transcripts/{transcriptId}",
+        "definition": {
+          "entityName": "Transcript",
+          "schema": {
+            "$ref": "#/backend/entities/Transcript"
+          },
+          "description": "Stores transcripts for a specific patient. The patientId field within the document must match the {patientId} in the path.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The ID of the user who owns the patient data. (request.auth.uid)"
+            },
+            {
+              "name": "patientId",
+              "description": "The unique ID of the patient."
+            },
+            {
+              "name": "transcriptId",
+              "description": "The unique ID of the transcript."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/patients/{patientId}/soap_notes/{soapNoteId}",
+        "definition": {
+          "entityName": "SoapNote",
+          "schema": {
+            "$ref": "#/backend/entities/SoapNote"
+          },
+          "description": "Stores SOAP notes for a specific patient. The patientId field within the document must match the {patientId} in the path.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The ID of the user who owns the patient data. (request.auth.uid)"
+            },
+            {
+              "name": "patientId",
+              "description": "The unique ID of the patient."
+            },
+            {
+              "name": "soapNoteId",
+              "description": "The unique ID of the SOAP note."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/patients/{patientId}/instructions/{instructionId}",
+        "definition": {
+          "entityName": "Instruction",
+          "schema": {
+            "$ref": "#/backend/entities/Instruction"
+          },
+          "description": "Stores instructions sent to a specific patient. The patientId field within the document must match the {patientId} in the path.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The ID of the user who owns the patient data. (request.auth.uid)"
+            },
+            {
+              "name": "patientId",
+              "description": "The unique ID of the patient."
+            },
+            {
+              "name": "instructionId",
+              "description": "The unique ID of the instruction."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The data structure is designed to manage patient information, transcripts, SOAP notes, and instructions, ensuring data isolation and efficient querying. Each patient has their own set of subcollections for transcripts, SOAP notes, and instructions, which allows for easy retrieval of all related data for a specific patient. This structure uses path-based ownership (`/users/{userId}/patients/{patientId}`) for patient data, providing clear ownership and simplifies security rules.\n\nTo achieve Authorization Independence, patient data is stored under a user-specific path (`/users/{userId}/patients/{patientId}`), with userId corresponding to `request.auth.uid`. This eliminates the need for `get()` calls in security rules. Each subcollection (transcripts, soap_notes, instructions) resides under the patient document, ensuring that all data related to a patient is isolated and accessible only to the authorized user. The `patientId` in each subcollection document (transcript, soap note, and instruction) reinforces this association.\n\nTo support QAPs, the structure avoids mixing data with different access needs in the same collection. Each user's patient data is segregated under their respective user ID. Listing operations are secure because rules can easily enforce that a user can only access patients and related data under their own user ID. The use of hierarchical paths further simplifies secure listing, reading, and writing operations.\n\nThe structure supports integrity by ensuring that each transcript, SOAP note, and instruction is explicitly linked to a patient via the `patientId` field, enforcing a clear 1:N relationship. Timestamps (`createdAt`, `sentAt`) are included for proper ordering and tracking of events."
+  }
+}
