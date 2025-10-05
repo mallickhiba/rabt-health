@@ -9,7 +9,6 @@ import {
   Play,
   Square,
   FileText,
-  Link as LinkIcon,
   Languages,
   Save,
   Sparkles,
@@ -49,6 +48,8 @@ type Message = {
   speaker: Speaker;
   originalText: string;
   translatedText: string;
+  sourceLang: string;
+  targetLang: string;
 };
 
 const patientData = {
@@ -60,10 +61,18 @@ const patientData = {
     phone: "923328785640"
 }
 
+const doctorData = {
+    name: "Dr. Ahmed",
+    avatar: "https://picsum.photos/seed/doc/200/200",
+    initials: "DA",
+    language: "English",
+    languageCode: "eng"
+}
+
 export default function PatientDashboardPage() {
     const { toast } = useToast();
     const [patientLang, setPatientLang] = useState(patientData.languageCode);
-    const [doctorLang, setDoctorLang] = useState("eng");
+    const [doctorLang, setDoctorLang] = useState(doctorData.languageCode);
     const [conversation, setConversation] = useState<Message[]>([]);
     const [processingSpeaker, setProcessingSpeaker] = useState<Speaker | null>(null);
     const [audioPlayer, setAudioPlayer] = useState<HTMLAudioElement | null>(null);
@@ -82,7 +91,6 @@ export default function PatientDashboardPage() {
     const [whatsAppNumber, setWhatsAppNumber] = useState(patientData.phone);
     const [instructionLanguage, setInstructionLanguage] = useState(patientData.languageCode);
 
-
     const conversationEndRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
@@ -90,21 +98,13 @@ export default function PatientDashboardPage() {
     };
 
     useEffect(() => {
-        if (conversation.length) {
-            scrollToBottom();
-        }
+      scrollToBottom();
     }, [conversation]);
     
     useEffect(() => {
         return () => {
-            if (audioPlayer) {
-                audioPlayer.pause();
-                setAudioPlayer(null);
-            }
-            if (instructionAudioPlayer) {
-                instructionAudioPlayer.pause();
-                setInstructionAudioPlayer(null);
-            }
+            if (audioPlayer) audioPlayer.pause();
+            if (instructionAudioPlayer) instructionAudioPlayer.pause();
         };
     }, [audioPlayer, instructionAudioPlayer]);
 
@@ -157,6 +157,8 @@ export default function PatientDashboardPage() {
                   speaker,
                   originalText,
                   translatedText,
+                  sourceLang,
+                  targetLang,
                 },
               ]);
 
@@ -207,7 +209,7 @@ export default function PatientDashboardPage() {
         setDoctorLang(patientLang);
     };
 
-    const handlePlayAudio = async (text: string, messageId: number, langCode: string) => {
+    const handlePlayAudio = async (text: string, messageId: number) => {
         if (playingMessageId === messageId && audioPlayer) {
             audioPlayer.pause();
             setPlayingMessageId(null);
@@ -335,6 +337,7 @@ export default function PatientDashboardPage() {
                 to: whatsAppNumber,
                 text: generatedInstructions.clarifiedText,
                 audioDataUri: generatedInstructions.audioDataUri,
+                patientLanguage: instructionLanguage
             });
             toast({
                 title: "Instructions Sent",
@@ -354,67 +357,73 @@ export default function PatientDashboardPage() {
 
 
     const conversationStarted = conversation.length > 0;
+    
+    const renderMessage = (msg: Message) => {
+      const isPatient = msg.speaker === 'Patient';
+      const bubbleAlignment = isPatient ? "items-start" : "items-end";
+      const bubbleColor = isPatient ? "bg-accent text-accent-foreground" : "bg-primary text-primary-foreground";
+      const corner = isPatient ? "rounded-bl-none" : "rounded-br-none";
+      const avatarSrc = isPatient ? patientData.avatar : doctorData.avatar;
+      const avatarFallback = isPatient ? patientData.initials : doctorData.initials;
+      const speakerName = isPatient ? patientData.name : doctorData.name;
 
-    const renderConversation = (perspective: Speaker) => (
-        <ScrollArea className="h-full w-full">
-            <div className="p-4 space-y-4">
-                {conversation.map((msg) => {
-                    const isPerspectiveSpeaker = msg.speaker === perspective;
-                    const textToShow = isPerspectiveSpeaker ? msg.originalText : msg.translatedText;
-                    const bubbleAlignment = isPerspectiveSpeaker ? "items-end" : "items-start";
-                    const bubbleColor = isPerspectiveSpeaker ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
-                    const langCode = isPerspectiveSpeaker ? (perspective === 'Patient' ? patientLang : doctorLang) : (perspective === 'Patient' ? doctorLang : patientLang);
-                    
-                    const isPlaying = playingMessageId === msg.id;
-                    const isLoadingAudio = audioLoadingMessageId === msg.id;
+      const isPlaying = playingMessageId === msg.id;
+      const isLoadingAudio = audioLoadingMessageId === msg.id;
 
-                    return (
-                        <div key={msg.id} className={`flex flex-col gap-1 ${bubbleAlignment}`}>
-                            <div className="font-semibold text-sm">
-                                {msg.speaker}
-                            </div>
-                            <div className={`flex gap-2 items-end ${isPerspectiveSpeaker ? 'flex-row-reverse' : 'flex-row'}`}>
-                                <div className={`p-3 rounded-lg shadow-md max-w-[80%] ${bubbleColor}`}>
-                                    <p>{textToShow}</p>
-                                </div>
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8"
-                                                onClick={() => handlePlayAudio(textToShow, msg.id, langCode)}
-                                                disabled={isLoadingAudio}
-                                            >
-                                                {isLoadingAudio ? (
-                                                    <LoaderCircle className="w-4 h-4 animate-spin" />
-                                                ) : isPlaying ? (
-                                                    <Square className="w-4 h-4" />
-                                                ) : (
-                                                    <Play className="w-4 h-4" />
-                                                )}
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>{isPlaying ? "Stop" : "Play"}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </div>
-                        </div>
-                    );
-                })}
-                <div ref={conversationEndRef} />
+      return (
+        <div key={msg.id} className={`flex gap-3 w-full ${isPatient ? 'flex-row' : 'flex-row-reverse'}`}>
+          <Avatar className="h-10 w-10">
+              <AvatarImage src={avatarSrc} alt={speakerName} />
+              <AvatarFallback>{avatarFallback}</AvatarFallback>
+          </Avatar>
+          <div className={`flex flex-col gap-1 w-full max-w-[80%] ${bubbleAlignment}`}>
+            <div className="font-bold text-sm">
+                {speakerName}
             </div>
-        </ScrollArea>
-    );
+            <div className={`p-3 rounded-lg shadow-md ${bubbleColor} ${corner}`}>
+                <p className="font-semibold">{msg.translatedText}</p>
+                <p className="text-sm opacity-80 mt-2 pt-2 border-t border-black/10">{msg.originalText}</p>
+            </div>
+            <div className="flex items-center gap-1">
+              <TooltipProvider>
+                  <Tooltip>
+                      <TooltipTrigger asChild>
+                          <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => handlePlayAudio(msg.translatedText, msg.id)}
+                              disabled={isLoadingAudio}
+                          >
+                              {isLoadingAudio ? (
+                                  <LoaderCircle className="w-4 h-4 animate-spin" />
+                              ) : isPlaying ? (
+                                  <Square className="w-4 h-4" />
+                              ) : (
+                                  <Play className="w-4 h-4" />
+                              )}
+                          </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                          <p>{isPlaying ? "Stop" : "Play Translation"}</p>
+                      </TooltipContent>
+                  </Tooltip>
+              </TooltipProvider>
+              <span className="text-xs text-muted-foreground">
+                  {languages.find(l => l.code === msg.targetLang)?.name}
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    }
 
     const renderSpeakerPanel = (
         speaker: Speaker,
         lang: string,
         setLang: (lang: string) => void,
-        recorder: { isRecording: boolean; toggleRecording: () => void; }
+        recorder: { isRecording: boolean; toggleRecording: () => void; },
+        speakerData: {name: string; avatar: string; initials: string;}
     ) => {
         const isRecording = recorder.isRecording;
         const isProcessing = processingSpeaker === speaker;
@@ -422,13 +431,15 @@ export default function PatientDashboardPage() {
         const buttonDisabled = !!processingSpeaker || otherRecorder.isRecording;
 
         return (
-            <Card className="flex flex-col h-full overflow-hidden w-full">
-                <CardHeader className="flex-row items-center justify-between border-b">
-                    <h3 className="font-semibold">
-                        {speaker}
-                    </h3>
+            <div className="flex flex-col items-center gap-4">
+                <Avatar className="h-20 w-20">
+                    <AvatarImage src={speakerData.avatar} alt={speakerData.name}/>
+                    <AvatarFallback>{speakerData.initials}</AvatarFallback>
+                </Avatar>
+                <div className="text-center">
+                    <h3 className="font-bold text-lg">{speakerData.name}</h3>
                     <Select value={lang} onValueChange={setLang} disabled={conversationStarted}>
-                        <SelectTrigger className="w-[180px]">
+                        <SelectTrigger className="w-[180px] mt-2 bg-background">
                             <SelectValue placeholder="Select language" />
                         </SelectTrigger>
                         <SelectContent>
@@ -439,40 +450,32 @@ export default function PatientDashboardPage() {
                             ))}
                         </SelectContent>
                     </Select>
-                </CardHeader>
-                <CardContent className="flex-grow p-0 min-h-[300px] bg-muted/20">
-                    {renderConversation(speaker)}
-                </CardContent>
-                <CardFooter className="p-4 border-t">
-                    <TooltipProvider delayDuration={100}>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    size="lg"
-                                    className="w-full transition-all"
-                                    onClick={recorder.toggleRecording}
-                                    disabled={buttonDisabled}
-                                    variant={isRecording ? "destructive" : "default"}
-                                >
-                                    {isProcessing ? (
-                                        <LoaderCircle className="w-6 h-6 animate-spin" />
-                                    ) : isRecording ? (
-                                        <MicOff className="w-6 h-6" />
-                                    ) : (
-                                        <Mic className="w-6 h-6" />
-                                    )}
-                                    <span className="ml-2 font-medium">
-                                        {isProcessing ? "Processing..." : isRecording ? `Stop (${speaker})` : `Record (${speaker})`}
-                                    </span>
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>{buttonDisabled ? "Wait for other speaker or processing to finish" : isRecording ? "Click to stop recording" : "Click to start recording"}</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                </CardFooter>
-            </Card>
+                </div>
+                <TooltipProvider delayDuration={100}>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                size="lg"
+                                className={`w-24 h-24 rounded-full transition-all duration-300 ease-in-out shadow-lg flex flex-col items-center justify-center gap-1 ${isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
+                                onClick={recorder.toggleRecording}
+                                disabled={buttonDisabled}
+                            >
+                                {isProcessing ? (
+                                    <LoaderCircle className="w-8 h-8 animate-spin" />
+                                ) : isRecording ? (
+                                    <MicOff className="w-8 h-8" />
+                                ) : (
+                                    <Mic className="w-8 h-8" />
+                                )}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                           <p>{buttonDisabled ? "Wait for other speaker or processing to finish" : isRecording ? "Click to stop recording" : "Click to start recording"}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+                 {isProcessing && <p className="text-sm text-muted-foreground animate-pulse">Translating...</p>}
+            </div>
         );
     };
 
@@ -502,18 +505,33 @@ export default function PatientDashboardPage() {
                     <TabsTrigger value="instructions"><Send className="mr-2 h-4 w-4" /> Instructions</TabsTrigger>
                 </TabsList>
                 <TabsContent value="translation">
-                    <Card>
+                     <Card className="flex flex-col h-[600px]">
                         <CardHeader>
-                            <h3 className="text-lg font-semibold">Real-Time Voice Translation</h3>
-                            <p className="text-sm text-muted-foreground">Translate patient's language to doctor's language in real-time.</p>
+                            <CardTitle>Real-Time Translation</CardTitle>
+                            <CardDescription>Record audio from the patient and doctor to see a real-time translated conversation.</CardDescription>
                         </CardHeader>
-                        <CardContent className="flex flex-col md:flex-row items-center gap-4">
-                            {renderSpeakerPanel("Patient", patientLang, setPatientLang, recorderPatient)}
+                        <CardContent className="flex-grow p-4 bg-muted/20 overflow-hidden">
+                            <ScrollArea className="h-full">
+                              <div className="p-4 space-y-6">
+                                  {conversation.length === 0 && (
+                                    <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
+                                      <Languages className="w-12 h-12 mb-4" />
+                                      <p className="font-semibold">Conversation is empty</p>
+                                      <p className="text-sm">Use the microphone buttons below to start the translated conversation.</p>
+                                    </div>
+                                  )}
+                                  {conversation.map(renderMessage)}
+                                  <div ref={conversationEndRef} />
+                              </div>
+                            </ScrollArea>
+                        </CardContent>
+                        <CardFooter className="p-4 border-t bg-background flex justify-around items-start">
+                            {renderSpeakerPanel("Patient", patientLang, setPatientLang, recorderPatient, patientData)}
                             
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <Button variant="outline" size="icon" onClick={swapLanguages} disabled={conversationStarted}>
+                                        <Button variant="outline" size="icon" className="mt-20" onClick={swapLanguages} disabled={conversationStarted}>
                                             <ArrowRightLeft className="w-5 h-5" />
                                         </Button>
                                     </TooltipTrigger>
@@ -523,8 +541,8 @@ export default function PatientDashboardPage() {
                                 </Tooltip>
                             </TooltipProvider>
 
-                            {renderSpeakerPanel("Doctor", doctorLang, setDoctorLang, recorderDoctor)}
-                        </CardContent>
+                            {renderSpeakerPanel("Doctor", doctorLang, setDoctorLang, recorderDoctor, doctorData)}
+                        </CardFooter>
                     </Card>
                 </TabsContent>
                 <TabsContent value="soap">
@@ -611,7 +629,7 @@ export default function PatientDashboardPage() {
                                         value={customInstructionText}
                                         onChange={(e) => setCustomInstructionText(e.target.value)}
                                         rows={4}
-                                        disabled={isProcessingInstructions || isSendingInstructions || recorderInstructions.isRecording}
+                                        disabled={isProcessingInstructions || isSendingInstructions || isRecordingCustomInstruction}
                                     />
                                     <Button
                                         onClick={recorderInstructions.toggleRecording}
@@ -700,5 +718,3 @@ export default function PatientDashboardPage() {
         </div>
     );
 }
-
-    
