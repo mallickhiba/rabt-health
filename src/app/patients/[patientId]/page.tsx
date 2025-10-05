@@ -46,7 +46,7 @@ import { useUser, useDoc, useMemoFirebase, useFirestore } from "@/firebase";
 import { doc, collection } from 'firebase/firestore';
 import type { Patient } from '@/lib/types';
 import { Skeleton } from "@/components/ui/skeleton";
-import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { setDocumentNonBlocking, addDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 type Speaker = "Patient" | "Doctor";
 type Message = {
@@ -337,11 +337,11 @@ export default function PatientEncounterPage({ params }: { params: { patientId: 
         const soapNotesCollection = collection(firestore, `users/${user.uid}/patients/${patient.id}/soap_notes`);
         const newNoteRef = doc(soapNotesCollection);
         
-        setDocumentNonBlocking(newNoteRef, {
+        addDocumentNonBlocking(soapNotesCollection, {
             ...soapNote,
             patientId: patient.id,
             createdAt: new Date().toISOString(),
-        }, { merge: true });
+        });
 
         toast({
             title: "Note Saved",
@@ -365,13 +365,12 @@ export default function PatientEncounterPage({ params }: { params: { patientId: 
             });
 
             const instructionsCollection = collection(firestore, `users/${user.uid}/patients/${patient.id}/instructions`);
-            const newInstructionRef = doc(instructionsCollection);
-            setDocumentNonBlocking(newInstructionRef, {
+            addDocumentNonBlocking(instructionsCollection, {
                 patientId: patient.id,
                 text: generatedInstructions.clarifiedText,
                 sentAt: new Date().toISOString(),
                 method: 'WhatsApp',
-            }, { merge: true });
+            });
 
 
             toast({
@@ -543,6 +542,8 @@ export default function PatientEncounterPage({ params }: { params: { patientId: 
         languageCode: patient.language,
     };
 
+    const patientLanguageName = languages.find(l => l.code === patientLang)?.name ?? patientLang;
+
     return (
         <div className="flex flex-col gap-4 w-full">
             <Card>
@@ -555,7 +556,7 @@ export default function PatientEncounterPage({ params }: { params: { patientId: 
                         <h2 className="text-2xl font-bold">{patient.name}</h2>
                         <p className="text-muted-foreground">New Encounter Session</p>
                         <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="outline">{languages.find(l => l.code === patientLang)?.name}</Badge>
+                            <Badge variant="outline">{patientLanguageName}</Badge>
                             <span className="text-sm text-muted-foreground">{patient.phoneNumber}</span>
                         </div>
                     </div>

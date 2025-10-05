@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -24,15 +23,19 @@ import { useUser, useCollection, useMemoFirebase, useFirestore } from '@/firebas
 import { collection } from 'firebase/firestore';
 import type { Patient } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PlusCircle } from 'lucide-react';
+import { NewPatientForm } from '@/components/patients/NewPatientForm';
+import { languages } from '@/lib/languages';
+
 
 function PatientRow({ patient }: { patient: Patient }) {
+  const patientLanguage = languages.find(lang => lang.code === patient.language)?.name || patient.language;
+
   return (
     <TableRow>
       <TableCell>
         <div className="flex items-center gap-3">
           <Avatar>
-            <AvatarImage src={`https://picsum.photos/seed/${patient.id}/40/40`} alt={patient.name} />
+            <AvatarImage src={`https://picsum.photos/seed/${patient.id}/40/40`} data-ai-hint="person" alt={patient.name} />
             <AvatarFallback>{patient.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <span className="font-medium">{patient.name}</span>
@@ -40,7 +43,7 @@ function PatientRow({ patient }: { patient: Patient }) {
       </TableCell>
       <TableCell>{patient.phoneNumber}</TableCell>
       <TableCell>
-        <Badge variant="outline">{patient.language}</Badge>
+        <Badge variant="outline">{patientLanguage}</Badge>
       </TableCell>
       <TableCell className="text-right">
         <Button asChild variant="outline" size="sm">
@@ -84,10 +87,7 @@ export default function PatientsPage() {
             View and manage your patient list.
             </CardDescription>
         </div>
-        <Button>
-            <PlusCircle className="mr-2 h-4 w-4"/>
-            New Patient
-        </Button>
+        <NewPatientForm />
       </CardHeader>
       <CardContent>
         <Table>
