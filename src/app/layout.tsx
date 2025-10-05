@@ -6,6 +6,7 @@ import { SidebarProvider, Sidebar, SidebarTrigger, SidebarContent, SidebarHeader
 import { Button } from '@/components/ui/button';
 import { Leaf, Home, Users, FileText } from 'lucide-react';
 import Link from 'next/link';
+import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
   title: 'Rabt Health',
@@ -28,55 +29,57 @@ export default function RootLayout({
         />
       </head>
       <body className={cn('font-body antialiased')}>
-        <SidebarProvider>
-          <Sidebar>
-            <SidebarContent>
-              <SidebarHeader>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-primary">
-                    <Leaf className="w-5 h-5" />
-                  </Button>
-                  <div className="flex flex-col">
-                    <h2 className="text-lg font-semibold tracking-tight">Rabt Health</h2>
+        <FirebaseClientProvider>
+          <SidebarProvider>
+            <Sidebar>
+              <SidebarContent>
+                <SidebarHeader>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-primary">
+                      <Leaf className="w-5 h-5" />
+                    </Button>
+                    <div className="flex flex-col">
+                      <h2 className="text-lg font-semibold tracking-tight">Rabt Health</h2>
+                    </div>
                   </div>
-                </div>
-              </SidebarHeader>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/dashboard">
-                      <Home />
-                      <span>Dashboard</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/patients">
-                      <Users />
-                      <span>Patients</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/records">
-                      <FileText />
-                      <span>Records</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarContent>
-          </Sidebar>
-          <SidebarInset>
-            <header className="flex h-12 items-center justify-between border-b bg-background px-4 md:pl-2">
-              <SidebarTrigger />
-              <p className="font-semibold"></p>
-            </header>
-            <main className="flex-1 overflow-y-auto p-4">{children}</main>
-          </SidebarInset>
-        </SidebarProvider>
+                </SidebarHeader>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <Link href="/dashboard">
+                        <Home />
+                        <span>Dashboard</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <Link href="/patients">
+                        <Users />
+                        <span>Patients</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <Link href="/records">
+                        <FileText />
+                        <span>Records</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarContent>
+            </Sidebar>
+            <SidebarInset>
+              <header className="flex h-12 items-center justify-between border-b bg-background px-4 md:pl-2">
+                <SidebarTrigger />
+                <p className="font-semibold"></p>
+              </header>
+              <main className="flex-1 overflow-y-auto p-4">{children}</main>
+            </SidebarInset>
+          </SidebarProvider>
+        </FirebaseClientProvider>
         <Toaster />
       </body>
     </html>
