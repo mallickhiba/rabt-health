@@ -361,7 +361,7 @@ export default function PatientDashboardPage() {
     const renderMessage = (msg: Message) => {
       const isPatient = msg.speaker === 'Patient';
       const bubbleAlignment = isPatient ? "items-start" : "items-end";
-      const bubbleColor = isPatient ? "bg-accent text-accent-foreground" : "bg-primary text-primary-foreground";
+      const bubbleColor = isPatient ? "bg-muted" : "bg-primary text-primary-foreground";
       const corner = isPatient ? "rounded-bl-none" : "rounded-br-none";
       const avatarSrc = isPatient ? patientData.avatar : doctorData.avatar;
       const avatarFallback = isPatient ? patientData.initials : doctorData.initials;
@@ -439,7 +439,7 @@ export default function PatientDashboardPage() {
                 <div className="text-center">
                     <h3 className="font-bold text-lg">{speakerData.name}</h3>
                     <Select value={lang} onValueChange={setLang} disabled={conversationStarted}>
-                        <SelectTrigger className="w-[180px] mt-2 bg-background">
+                        <SelectTrigger className="w-[180px] mt-2 bg-card">
                             <SelectValue placeholder="Select language" />
                         </SelectTrigger>
                         <SelectContent>
@@ -456,7 +456,7 @@ export default function PatientDashboardPage() {
                         <TooltipTrigger asChild>
                             <Button
                                 size="lg"
-                                className={`w-24 h-24 rounded-full transition-all duration-300 ease-in-out shadow-lg flex flex-col items-center justify-center gap-1 ${isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
+                                className={`w-24 h-24 rounded-full transition-all duration-300 ease-in-out shadow-lg flex flex-col items-center justify-center gap-1 ${isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-primary hover:bg-primary/90'} text-white`}
                                 onClick={recorder.toggleRecording}
                                 disabled={buttonDisabled}
                             >
@@ -510,7 +510,7 @@ export default function PatientDashboardPage() {
                             <CardTitle>Real-Time Translation</CardTitle>
                             <CardDescription>Record audio from the patient and doctor to see a real-time translated conversation.</CardDescription>
                         </CardHeader>
-                        <CardContent className="flex-grow p-4 bg-muted/20 overflow-hidden">
+                        <CardContent className="flex-grow p-4 bg-muted/40 overflow-hidden">
                             <ScrollArea className="h-full">
                               <div className="p-4 space-y-6">
                                   {conversation.length === 0 && (
@@ -525,7 +525,7 @@ export default function PatientDashboardPage() {
                               </div>
                             </ScrollArea>
                         </CardContent>
-                        <CardFooter className="p-4 border-t bg-background flex justify-around items-start">
+                        <CardFooter className="p-4 border-t bg-card flex justify-around items-start">
                             {renderSpeakerPanel("Patient", patientLang, setPatientLang, recorderPatient, patientData)}
                             
                             <TooltipProvider>
