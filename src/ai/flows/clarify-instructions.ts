@@ -39,13 +39,15 @@ const clarificationPrompt = ai.definePrompt({
         clarifiedInstructions: z.string(),
     })},
     prompt: `You are a helpful medical assistant. Your task is to clarify and simplify a medical instruction for a patient.
-Rephrase the instruction in a clear, simple, and encouraging tone.
+Rephrase the instruction in a clear, simple, and encouraging tone. Be very clear and concise. 
 Translate the final, clarified instruction into the patient's language: {{patientLanguage}}.
+
+Important: Output ONLY the translated text in {{patientLanguage}}, no English text.
 
 Instruction to process:
 {{{instructions}}}
 
-Respond with only the clarified and translated instruction.`,
+Respond with only the clarified and translated instruction in {{patientLanguage}}.`,
 });
 
 
@@ -57,18 +59,35 @@ const clarifyAndGenerateInstructionsFlow = ai.defineFlow(
   },
   async (input) => {
     
+    // Map language codes to full names for better LLM understanding
+    const codeToName: Record<string, string> = {
+      eng: 'English',
+      urd: 'Urdu',
+      pan: 'Punjabi',
+      pus: 'Pashto',
+      snd: 'Sindhi',
+    };
+    const languageName = codeToName[input.patientLanguage] || input.patientLanguage;
+    
+    console.log(`Clarifying instructions for language: ${languageName}`);
+    
     // 1. Use an LLM to clarify, and translate the text.
     const { output } = await clarificationPrompt({
         instructions: input.customInstruction,
-        patientLanguage: input.patientLanguage,
+        patientLanguage: languageName,
     });
     const clarifiedText = output!.clarifiedInstructions;
+    
+    console.log('Clarified and translated text:', clarifiedText);
 
-    // 2. Convert the clarified text to speech.
+    // 2. Convert the clarified AND TRANSLATED text to speech.
+    console.log(`Converting translated ${languageName} text to speech...`);
     const ttsResult = await textToSpeech({
-        text: clarifiedText,
-        modelId: 'eleven_multilingual_v2', // Use a multilingual model
+        text: clarifiedText, // This is already translated
+        modelId: 'eleven_multilingual_v2', // Use a multilingual model that supports Urdu, Punjabi, etc.
     });
+
+    console.log('Audio generated successfully from translated text');
 
     // 3. Return the clarified text and the audio data.
     return {

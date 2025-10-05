@@ -40,7 +40,8 @@ const textToSpeechFlow = ai.defineFlow(
 
     const voiceId = input.voiceId || 'JBFqnCBsd6RMkjVDRZzb'; // Default voice
     const modelId = input.modelId || 'eleven_multilingual_v2';
-    const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`;
+    // Use supported Opus output (WhatsApp voice-note friendly)
+    const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=opus_48000_64`;
 
     const response = await fetch(url, {
       method: 'POST',
@@ -62,7 +63,8 @@ const textToSpeechFlow = ai.defineFlow(
     const audioBlob = await response.blob();
     const audioBuffer = await audioBlob.arrayBuffer();
     const audioBase64 = Buffer.from(audioBuffer).toString('base64');
-    const dataUri = `data:${audioBlob.type};base64,${audioBase64}`;
+    // Tag as OGG/Opus for WhatsApp upload compatibility
+    const dataUri = `data:audio/ogg;base64,${audioBase64}`;
 
     return { audioDataUri: dataUri };
   }
