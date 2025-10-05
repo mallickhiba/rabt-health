@@ -8,7 +8,7 @@ import { HeartPulse, Home, Users, FileText } from 'lucide-react';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Uplift Sehat',
+  title: 'Rabt Health',
   description: 'A doctor-facing mobile application that breaks language barriers in healthcare.',
 };
 
@@ -37,7 +37,7 @@ export default function RootLayout({
                     <HeartPulse className="w-5 h-5" />
                   </Button>
                   <div className="flex flex-col">
-                    <h2 className="text-lg font-semibold tracking-tight">Uplift Sehat</h2>
+                    <h2 className="text-lg font-semibold tracking-tight">Rabt Health</h2>
                   </div>
                 </div>
               </SidebarHeader>
