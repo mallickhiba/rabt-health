@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowRightLeft,
   LoaderCircle,
@@ -783,6 +784,8 @@ export default function PatientEncounterPage({ params: { patientId } }: { params
         </div>
     );
 }
+
+    
 
     
 
