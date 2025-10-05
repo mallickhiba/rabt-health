@@ -66,15 +66,15 @@ const doctorData = {
     languageCode: "eng"
 }
 
-export default function PatientEncounterPage({ params }: { params: { patientId: string } }) {
+export default function PatientEncounterPage({ params: { patientId } }: { params: { patientId: string } }) {
     const { toast } = useToast();
     const { user } = useUser();
     const firestore = useFirestore();
 
     const patientRef = useMemoFirebase(() => {
-        if (!user || !firestore || !params.patientId) return null;
-        return doc(firestore, `users/${user.uid}/patients/${params.patientId}`);
-    }, [user, firestore, params.patientId]);
+        if (!user || !firestore || !patientId) return null;
+        return doc(firestore, `users/${user.uid}/patients/${patientId}`);
+    }, [user, firestore, patientId]);
     
     const {data: patient, isLoading: isPatientLoading } = useDoc<Patient>(patientRef);
 
@@ -406,7 +406,7 @@ export default function PatientEncounterPage({ params }: { params: { patientId: 
                     <CardHeader>
                         <CardTitle>Patient Not Found</CardTitle>
                         <CardDescription>
-                            Could not find a patient with ID: {params.patientId}
+                            Could not find a patient with ID: {patientId}
                         </CardDescription>
                     </CardHeader>
                 </Card>
@@ -774,7 +774,7 @@ export default function PatientEncounterPage({ params }: { params: { patientId: 
                                 <Button onClick={handleSendInstructions} size="lg" disabled={isSendingInstructions}>
                                     {isSendingInstructions ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                                     <span className="ml-2">{isSendingInstructions ? 'Sending...' : 'Send to WhatsApp'}</span>
-                                </Button>
+                                 </Button>
                             </CardFooter>
                         )}
                     </Card>
