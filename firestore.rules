@@ -1,17 +1,19 @@
 /**
- * @file Firestore Security Rules for Patient Management System
- * @description This ruleset enforces a strict user-ownership model for patient data and related records.
+ * @file Firestore Security Rules
+ * @description This ruleset enforces a strict user-ownership model for patient data and associated subcollections.
  *
  * Data Structure:
- * All patient data and related information (transcripts, SOAP notes, instructions) are nested under the `/users/{userId}/patients/{patientId}` path.
- * The `userId` segment corresponds to the authenticated user's UID, ensuring that each user can only access their own data.
- * Subcollections for transcripts, SOAP notes, and instructions are organized under each patient document.
+ * All patient data and related records (transcripts, SOAP notes, instructions) are nested under a user-specific path: /users/{userId}/patients/{patientId}/...
+ * - `/users/{userId}/patients/{patientId}`: Stores patient information.
+ * - `/users/{userId}/patients/{patientId}/transcripts/{transcriptId}`: Stores patient transcripts.
+ * - `/users/{userId}/patients/{patientId}/soap_notes/{soapNoteId}`: Stores SOAP notes for patients.
+ * - `/users/{userId}/patients/{patientId}/instructions/{instructionId}`: Stores instructions sent to patients.
  *
  * Key Security Decisions:
- * 1.  Ownership: All data access is based on the principle of ownership. Users can only create, read, update, or delete data associated with their own user ID.
- * 2.  Path Consistency: The rules enforce consistency between the path parameters (`userId`, `patientId`) and the data stored in the documents (e.g., the `patientId` field in transcripts must match the `patientId` in the path).
- * 3.  Subcollection Access: Access to subcollections (transcripts, SOAP notes, instructions) is implicitly controlled by the ownership of the parent patient document.
- * 4.  Denormalization for Authorization: The `patientId` in each subcollection document (transcript, soap note, and instruction) reinforces this association and enables path consistency checks.
+ * - User ownership is enforced based on the `userId` path segment matching the authenticated user's UID.
+ * - All subcollections inherit the ownership of the parent patient document.
+ * - List operations are allowed only for the owner of the data.
+ * - Validation of data types and schema is omitted for rapid prototyping, except for fields critical for authorization (userId, patientId) and relational integrity.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -20,29 +22,31 @@ service cloud.firestore {
     /**
      * @description Enforces access control for patient documents.
      * @path /users/{userId}/patients/{patientId}
-     * @allow (create) - Authenticated user can create a patient document if the userId matches their auth UID and patient id matches the id field of the object being created.
-     * @allow (get, list) - Authenticated user can read patient document if the userId matches their auth UID.
-     * @allow (update, delete) - Authenticated user can update or delete a patient document if the userId matches their auth UID and the document exists.
-     * @deny (create) - If the userId does not match the auth UID.
-     * @deny (update, delete) - If the userId does not match the auth UID.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) - User '1ecklvOM9dVdsKi1bKGlBUmjhUU2' can create a patient document under /users/1ecklvOM9dVdsKi1bKGlBUmjhUU2/patients/somePatientId if the document.id matches 'somePatientId'.
+     * @allow (update) - User '1ecklvOM9dVdsKi1bKGlBUmjhUU2' can update a patient document under /users/1ecklvOM9dVdsKi1bKGlBUmjhUU2/patients/somePatientId.
+     * @allow (delete) - User '1ecklvOM9dVdsKi1bKGlBUmjhUU2' can delete a patient document under /users/1ecklvOM9dVdsKi1bKGlBUmjhUU2/patients/somePatientId.
+     * @deny (create) - User 'attackerId' cannot create a patient document under /users/1ecklvOM9dVdsKi1bKGlBUmjhUU2/patients/somePatientId.
+     * @principle Enforces document ownership for writes, path-based ownership for reads and writes.
      */
     match /users/{userId}/patients/{patientId} {
+      // Helper function to check if the user is signed in
       function isSignedIn() {
         return request.auth != null;
       }
 
+      // Helper function to check if the user is the owner of the document based on the userId path segment
       function isOwner(userId) {
-        return request.auth.uid == userId;
+        return isSignedIn() && request.auth.uid == userId;
       }
 
+      // Helper function to check if the user is the owner and the document exists
       function isExistingOwner(userId) {
         return isOwner(userId) && resource != null;
       }
 
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if isSignedIn() && isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == patientId;
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.id == patientId;
       allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
     }
@@ -50,29 +54,30 @@ service cloud.firestore {
     /**
      * @description Enforces access control for transcript documents.
      * @path /users/{userId}/patients/{patientId}/transcripts/{transcriptId}
-     * @allow (create) - Authenticated user can create a transcript document if the userId matches their auth UID and patientId matches the path.
-     * @allow (get, list) - Authenticated user can read a transcript document if the userId matches their auth UID.
-     * @allow (update, delete) - Authenticated user can update or delete a transcript document if the userId matches their auth UID, the document exists, and patientId matches the path.
-     * @deny (create) - If the userId does not match the auth UID or patientId does not match the path.
-     * @deny (update, delete) - If the userId does not match the auth UID or patientId does not match the path.
-     * @principle Enforces document ownership and relational integrity for writes.
+     * @allow (create) - User '1ecklvOM9dVdsKi1bKGlBUmjhUU2' can create a transcript document under /users/1ecklvOM9dVdsKi1bKGlBUmjhUU2/patients/somePatientId/transcripts/someTranscriptId.
+     * @allow (update) - User '1ecklvOM9dVdsKi1bKGlBUmjhUU2' can update a transcript document under /users/1ecklvOM9dVdsKi1bKGlBUmjhUU2/patients/somePatientId/transcripts/someTranscriptId.
+     * @allow (delete) - User '1ecklvOM9dVdsKi1bKGlBUmjhUU2' can delete a transcript document under /users/1ecklvOM9dVdsKi1bKGlBUmjhUU2/patients/somePatientId/transcripts/someTranscriptId.
+     * @deny (create) - User 'attackerId' cannot create a transcript document under /users/1ecklvOM9dVdsKi1bKGlBUmjhUU2/patients/somePatientId/transcripts/someTranscriptId.
+     * @principle Enforces document ownership for writes, path-based ownership for reads and writes, and validates relational integrity.
      */
     match /users/{userId}/patients/{patientId}/transcripts/{transcriptId} {
+       // Helper function to check if the user is signed in
       function isSignedIn() {
         return request.auth != null;
       }
 
+      // Helper function to check if the user is the owner of the document based on the userId path segment
       function isOwner(userId) {
-        return request.auth.uid == userId;
+        return isSignedIn() && request.auth.uid == userId;
       }
 
+      // Helper function to check if the user is the owner and the document exists
       function isExistingOwner(userId) {
         return isOwner(userId) && resource != null;
       }
-
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if isSignedIn() && isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.patientId == patientId;
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.patientId == patientId;
       allow update: if isExistingOwner(userId) && request.resource.data.patientId == patientId;
       allow delete: if isExistingOwner(userId);
     }
@@ -80,29 +85,30 @@ service cloud.firestore {
     /**
      * @description Enforces access control for SOAP note documents.
      * @path /users/{userId}/patients/{patientId}/soap_notes/{soapNoteId}
-     * @allow (create) - Authenticated user can create a SOAP note document if the userId matches their auth UID and patientId matches the path.
-     * @allow (get, list) - Authenticated user can read a SOAP note document if the userId matches their auth UID.
-     * @allow (update, delete) - Authenticated user can update or delete a SOAP note document if the userId matches their auth UID, the document exists, and patientId matches the path.
-     * @deny (create) - If the userId does not match the auth UID or patientId does not match the path.
-     * @deny (update, delete) - If the userId does not match the auth UID or patientId does not match the path.
-     * @principle Enforces document ownership and relational integrity for writes.
+     * @allow (create) - User '1ecklvOM9dVdsKi1bKGlBUmjhUU2' can create a SOAP note document under /users/1ecklvOM9dVdsKi1bKGlBUmjhUU2/patients/somePatientId/soap_notes/someSoapNoteId.
+     * @allow (update) - User '1ecklvOM9dVdsKi1bKGlBUmjhUU2' can update a SOAP note document under /users/1ecklvOM9dVdsKi1bKGlBUmjhUU2/patients/somePatientId/soap_notes/someSoapNoteId.
+     * @allow (delete) - User '1ecklvOM9dVdsKi1bKGlBUmjhUU2' can delete a SOAP note document under /users/1ecklvOM9dVdsKi1bKGlBUmjhUU2/patients/somePatientId/soap_notes/someSoapNoteId.
+     * @deny (create) - User 'attackerId' cannot create a SOAP note document under /users/1ecklvOM9dVdsKi1bKGlBUmjhUU2/patients/somePatientId/soap_notes/someSoapNoteId.
+     * @principle Enforces document ownership for writes, path-based ownership for reads and writes, and validates relational integrity.
      */
     match /users/{userId}/patients/{patientId}/soap_notes/{soapNoteId} {
+       // Helper function to check if the user is signed in
       function isSignedIn() {
         return request.auth != null;
       }
 
+      // Helper function to check if the user is the owner of the document based on the userId path segment
       function isOwner(userId) {
-        return request.auth.uid == userId;
+        return isSignedIn() && request.auth.uid == userId;
       }
 
+      // Helper function to check if the user is the owner and the document exists
       function isExistingOwner(userId) {
         return isOwner(userId) && resource != null;
       }
-
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if isSignedIn() && isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.patientId == patientId;
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.patientId == patientId;
       allow update: if isExistingOwner(userId) && request.resource.data.patientId == patientId;
       allow delete: if isExistingOwner(userId);
     }
@@ -110,29 +116,30 @@ service cloud.firestore {
     /**
      * @description Enforces access control for instruction documents.
      * @path /users/{userId}/patients/{patientId}/instructions/{instructionId}
-     * @allow (create) - Authenticated user can create an instruction document if the userId matches their auth UID and patientId matches the path.
-     * @allow (get, list) - Authenticated user can read an instruction document if the userId matches their auth UID.
-     * @allow (update, delete) - Authenticated user can update or delete an instruction document if the userId matches their auth UID, the document exists, and patientId matches the path.
-     * @deny (create) - If the userId does not match the auth UID or patientId does not match the path.
-     * @deny (update, delete) - If the userId does not match the auth UID or patientId does not match the path.
-     * @principle Enforces document ownership and relational integrity for writes.
+     * @allow (create) - User '1ecklvOM9dVdsKi1bKGlBUmjhUU2' can create an instruction document under /users/1ecklvOM9dVdsKi1bKGlBUmjhUU2/patients/somePatientId/instructions/someInstructionId.
+     * @allow (update) - User '1ecklvOM9dVdsKi1bKGlBUmjhUU2' can update an instruction document under /users/1ecklvOM9dVdsKi1bKGlBUmjhUU2/patients/somePatientId/instructions/someInstructionId.
+     * @allow (delete) - User '1ecklvOM9dVdsKi1bKGlBUmjhUU2' can delete an instruction document under /users/1ecklvOM9dVdsKi1bKGlBUmjhUU2/patients/somePatientId/instructions/someInstructionId.
+     * @deny (create) - User 'attackerId' cannot create an instruction document under /users/1ecklvOM9dVdsKi1bKGlBUmjhUU2/patients/somePatientId/instructions/someInstructionId.
+     * @principle Enforces document ownership for writes, path-based ownership for reads and writes, and validates relational integrity.
      */
     match /users/{userId}/patients/{patientId}/instructions/{instructionId} {
+       // Helper function to check if the user is signed in
       function isSignedIn() {
         return request.auth != null;
       }
 
+      // Helper function to check if the user is the owner of the document based on the userId path segment
       function isOwner(userId) {
-        return request.auth.uid == userId;
+        return isSignedIn() && request.auth.uid == userId;
       }
 
+      // Helper function to check if the user is the owner and the document exists
       function isExistingOwner(userId) {
         return isOwner(userId) && resource != null;
       }
-
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if isSignedIn() && isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.patientId == patientId;
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.patientId == patientId;
       allow update: if isExistingOwner(userId) && request.resource.data.patientId == patientId;
       allow delete: if isExistingOwner(userId);
     }
