@@ -66,8 +66,7 @@ const doctorData = {
     languageCode: "eng"
 }
 
-export default function PatientEncounterPage({ params }: { params: { patientId: string } }) {
-    const { patientId } = params;
+export default function PatientEncounterPage({ params: { patientId } }: { params: { patientId: string } }) {
     const { toast } = useToast();
     const { user } = useUser();
     const firestore = useFirestore();
@@ -784,5 +783,7 @@ export default function PatientEncounterPage({ params }: { params: { patientId: 
         </div>
     );
 }
+
+    
 
     
