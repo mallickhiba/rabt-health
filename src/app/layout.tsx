@@ -4,7 +4,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
 import { SidebarProvider, Sidebar, SidebarTrigger, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { HeartPulse, Home, Users, FileText } from 'lucide-react';
+import { Leaf, Home, Users, FileText } from 'lucide-react';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
@@ -34,7 +34,7 @@ export default function RootLayout({
               <SidebarHeader>
                 <div className="flex items-center gap-2">
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-primary">
-                    <HeartPulse className="w-5 h-5" />
+                    <Leaf className="w-5 h-5" />
                   </Button>
                   <div className="flex flex-col">
                     <h2 className="text-lg font-semibold tracking-tight">Rabt Health</h2>
