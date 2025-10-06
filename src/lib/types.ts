@@ -1,4 +1,5 @@
 
+
 export type Patient = {
     id: string;
     name: string;
@@ -17,6 +18,7 @@ export type Transcript = {
 
 export type SoapNote = {
     id: string;
+    userId: string;
     patientId: string;
     subjective: string;
     objective: string;
@@ -27,8 +29,11 @@ export type SoapNote = {
 
 export type Instruction = {
     id: string;
+    userId: string;
     patientId: string;
     text: string;
     sentAt: string;
     method: 'SMS' | 'Email' | 'In-Person' | 'WhatsApp';
+    language: string;
+    audioDataUri?: string;
 };
