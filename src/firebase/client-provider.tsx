@@ -3,12 +3,14 @@
 
 import React, { useMemo, type ReactNode } from 'react';
 import { FirebaseProvider, useUser } from '@/firebase/provider';
-import { initializeFirebase } from '@/firebase';
+import { initializeFirebase, useAuth } from '@/firebase';
 import { AuthLayout } from '@/components/auth/AuthLayout';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { FileText, Home, Leaf, LogOut, Users } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { signOut } from 'firebase/auth';
 
 interface FirebaseClientProviderProps {
   children: ReactNode;
@@ -16,9 +18,16 @@ interface FirebaseClientProviderProps {
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const { user } = useUser();
+  const auth = useAuth();
+  const router = useRouter();
+
+  const handleSignOut = () => {
+    signOut(auth);
+    router.push('/login');
+  };
 
   return (
-    <AuthLayout>
+    <AuthLayout onSignOut={handleSignOut}>
       {user ? (
          <SidebarProvider>
           <Sidebar>
@@ -59,7 +68,8 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>
-              <SidebarFooter>
+            </SidebarContent>
+            <SidebarFooter>
                 <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton>
@@ -69,7 +79,6 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                   </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarFooter>
-            </SidebarContent>
           </Sidebar>
           <SidebarInset>
             <header className="flex h-12 items-center justify-between border-b bg-background px-4 md:pl-2">
