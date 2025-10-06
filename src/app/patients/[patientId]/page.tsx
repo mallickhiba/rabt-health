@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { useSearchParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import {
   ArrowRightLeft,
   LoaderCircle,
@@ -45,9 +45,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useUser, useDoc, useMemoFirebase, useFirestore } from "@/firebase";
 import { doc, collection } from 'firebase/firestore';
-import type { Patient } from '@/lib/types';
+import type { Patient, SoapNote, Instruction } from '@/lib/types';
 import { Skeleton } from "@/components/ui/skeleton";
-import { setDocumentNonBlocking, addDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { addDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 type Speaker = "Patient" | "Doctor";
 type Message = {
@@ -67,8 +67,9 @@ const doctorData = {
     languageCode: "eng"
 }
 
-export default function PatientEncounterPage({ params }: { params: { patientId: string } }) {
-    const { patientId } = params;
+export default function PatientEncounterPage() {
+    const params = useParams();
+    const patientId = params.patientId as string;
     const { toast } = useToast();
     const { user } = useUser();
     const firestore = useFirestore();
@@ -794,3 +795,4 @@ export default function PatientEncounterPage({ params }: { params: { patientId: 
     
 
     
+
