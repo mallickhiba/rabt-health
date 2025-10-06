@@ -16,11 +16,12 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useAuth, initiateEmailSignIn } from '@/firebase';
+import { useAuth } from '@/firebase';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { Leaf, LoaderCircle } from 'lucide-react';
-import { Auth, signInWithEmailAndPassword } from 'firebase/auth';
+import { Auth, signInAnonymously, signInWithEmailAndPassword } from 'firebase/auth';
+import { Separator } from '@/components/ui/separator';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
@@ -41,6 +42,15 @@ async function handleLogin(auth: Auth, data: LoginFormValues) {
     }
     throw new Error(description);
   }
+}
+
+async function handleGuestLogin(auth: Auth) {
+    try {
+        await signInAnonymously(auth);
+    } catch (error: any) {
+        console.error("Guest login failed:", error);
+        throw new Error("Could not sign in as a guest. Please try again.");
+    }
 }
 
 
@@ -79,6 +89,26 @@ export default function LoginPage() {
     }
   };
 
+  const onGuestLogin = async () => {
+    setIsLoading(true);
+    try {
+        await handleGuestLogin(auth);
+         toast({
+            title: "Guest Login Successful",
+            description: "Welcome! As a guest, your data will not be saved.",
+        });
+        router.push('/dashboard');
+    } catch (error: any) {
+        toast({
+            variant: "destructive",
+            title: "Guest Login Failed",
+            description: error.message,
+        });
+    } finally {
+        setIsLoading(false);
+    }
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40">
       <Card className="w-full max-w-sm">
@@ -111,6 +141,21 @@ export default function LoginPage() {
               {isLoading ? <LoaderCircle className="animate-spin" /> : 'Sign In'}
             </Button>
           </form>
+           <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                Or continue with
+                </span>
+            </div>
+            </div>
+
+            <Button variant="secondary" className="w-full" onClick={onGuestLogin} disabled={isLoading}>
+                 {isLoading ? <LoaderCircle className="animate-spin" /> : 'Continue as Guest'}
+            </Button>
+
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
             <div className="text-center text-sm">
