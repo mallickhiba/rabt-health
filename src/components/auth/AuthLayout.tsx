@@ -1,4 +1,5 @@
 'use client';
+import * as React from 'react';
 import { useUser, useAuth } from '@/firebase';
 import { useRouter, usePathname } from 'next/navigation';
 import { type ReactNode, useEffect, Children } from 'react';
