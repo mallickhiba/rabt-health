@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -66,20 +67,20 @@ export default function RecordsPage() {
     const firestore = useFirestore();
 
     const soapNotesQuery = useMemoFirebase(() => {
-        if (!user || !firestore) return null;
+        if (!user?.uid || !firestore) return null;
         return query(
             collectionGroup(firestore, 'soap_notes'),
             where('userId', '==', user.uid)
         );
-    }, [user, firestore]);
+    }, [user?.uid, firestore]);
 
     const instructionsQuery = useMemoFirebase(() => {
-        if (!user || !firestore) return null;
+        if (!user?.uid || !firestore) return null;
         return query(
             collectionGroup(firestore, 'instructions'),
             where('userId', '==', user.uid)
         );
-    }, [user, firestore]);
+    }, [user?.uid, firestore]);
 
     const { data: soapNotes, isLoading: isLoadingNotes } = useCollection<SoapNote>(soapNotesQuery);
     const { data: instructions, isLoading: isLoadingInstructions } = useCollection<Instruction>(instructionsQuery);
@@ -93,7 +94,7 @@ export default function RecordsPage() {
         return dateB - dateA;
     });
 
-    const showLoading = isUserLoading || isLoadingNotes || isLoadingInstructions;
+    const showLoading = isUserLoading || (user && (isLoadingNotes || isLoadingInstructions));
 
   return (
     <Card>
