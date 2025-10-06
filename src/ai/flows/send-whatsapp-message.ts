@@ -107,31 +107,25 @@ const sendWhatsAppMessageFlow = ai.defineFlow(
         sanitizedTo = '92' + sanitizedTo;
     }
 
-    const apiVersion = 'v22.0';
+    const apiVersion = 'v20.0';
     
-    // 1. Send the text message first.
-    const textPayload = {
-      messaging_product: 'whatsapp',
-      recipient_type: 'individual',
-      to: sanitizedTo,
-      type: 'text',
-      text: {
-        preview_url: false,
-        body: input.text,
-      },
-    };
-
     try {
-        await sendWhatsAppApiMessage(accessToken, businessPhoneNumberId, apiVersion, textPayload);
-        console.log(`Text message sent successfully to ${sanitizedTo}.`);
-    } catch(error) {
-        console.error(`Failed to send text message to ${sanitizedTo}.`, error);
-        // We still try to send audio even if text fails
-    }
-
-    // 2. If there's audio, upload and send it.
-    if (input.audioDataUri) {
-      try {
+      // 1. Send the text message first.
+      const textPayload = {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: sanitizedTo,
+        type: 'text',
+        text: {
+          preview_url: false,
+          body: input.text,
+        },
+      };
+      await sendWhatsAppApiMessage(accessToken, businessPhoneNumberId, apiVersion, textPayload);
+      console.log(`Text message sent successfully to ${sanitizedTo}.`);
+  
+      // 2. If there's audio, upload and send it.
+      if (input.audioDataUri) {
         const mediaId = await uploadAudioToWhatsApp(accessToken, businessPhoneNumberId, input.audioDataUri, apiVersion);
         
         const audioPayload = {
@@ -145,12 +139,11 @@ const sendWhatsAppMessageFlow = ai.defineFlow(
         };
         await sendWhatsAppApiMessage(accessToken, businessPhoneNumberId, apiVersion, audioPayload);
         console.log(`Audio message sent successfully to ${sanitizedTo}.`);
-
-      } catch (error) {
-        console.error(`Failed to send audio message to ${sanitizedTo}.`, error);
-        // Decide if we should throw an error here, for now we just log it.
-        // If the text message also failed, the user should be notified.
       }
+    } catch (error) {
+        console.error(`Failed to send WhatsApp message to ${sanitizedTo}.`, error);
+        // Re-throw the error so the calling function can handle it and show a proper error message.
+        throw error;
     }
   }
 );
