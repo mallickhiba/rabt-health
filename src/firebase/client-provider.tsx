@@ -22,12 +22,13 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   const handleSignOut = () => {
-    signOut(auth);
-    router.push('/login');
+    signOut(auth).then(() => {
+      router.push('/login');
+    });
   };
 
   return (
-    <AuthLayout onSignOut={handleSignOut}>
+    <AuthLayout>
       {user ? (
          <SidebarProvider>
           <Sidebar>
@@ -72,7 +73,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             <SidebarFooter>
                 <SidebarMenu>
                   <SidebarMenuItem>
-                    <SidebarMenuButton>
+                    <SidebarMenuButton onClick={handleSignOut}>
                         <LogOut/>
                         <span>Sign Out</span>
                       </SidebarMenuButton>
