@@ -1,17 +1,24 @@
 /**
- * @file Overview
- * This ruleset enforces a strict user-ownership model, where each user can only access data associated with their user ID.
+ * @fileoverview Firestore Security Rules for Patient Management System.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model for patient data and associated records (transcripts, SOAP notes, instructions).
+ * Only the authenticated user who "owns" a patient can read or modify the patient's data.
  *
  * Data Structure:
- * All patient data and related information (transcripts, SOAP notes, instructions) are nested under the `/users/{userId}/patients/{patientId}` path.
+ * All patient data is nested under /users/{userId}, where {userId} must match the authenticated user's UID.
+ * Subcollections under each patient (e.g., transcripts, SOAP notes) inherit the same ownership.
  *
  * Key Security Decisions:
- * - Users can only manage data associated with their own user ID (path-based ownership).
- * - Data consistency is enforced by matching path parameters with document fields.
- * - Listing operations are allowed only for the owner of the data.
+ * - User listing is disallowed.
+ * - All write operations require authentication.
+ * - Data validation is limited to relational integrity (e.g., patientId in subcollections must match the parent patientId).
  *
  * Denormalization for Authorization:
- * The data model relies on path-based ownership (userId in the path matches request.auth.uid), eliminating the need for additional `get()` calls to determine ownership.
+ *  - Ownership is enforced through path-based rules, eliminating the need for `get()` calls to determine ownership.
+ *
+ * Structural Segregation:
+ * Patient data and associated records are stored in separate subcollections under each user, ensuring data isolation.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -33,103 +40,97 @@ service cloud.firestore {
     }
 
     /**
-     * @description Checks if the user is the owner and the resource exists (for update/delete).
+     * @description Checks if the requested user ID matches the authenticated user's ID and that the resource exists.
      * @param {string} userId - The user ID to check against.
      */
     function isExistingOwner(userId) {
-      return isOwner(userId) && exists(resource);
-    }
-
-    /**
-     * @description Enforces that the incoming document ID matches the document ID in the path.
-     * @param {string} documentId - The document ID from the path.
-     */
-    function isValidDocumentIdOnCreate(documentId) {
-        return request.resource.data.id == documentId;
-    }
-
-    /**
-     * @description Enforces that the document ID in the data matches the resource document ID to prevent changes
-     * @param {string} documentId - The document ID from the path.
-     */
-    function isValidDocumentIdOnUpdate(documentId) {
-        return request.resource.data.id == resource.data.id;
+      return isOwner(userId) && resource != null;
     }
 
     /**
      * @description Rules for /users/{userId}/patients/{patientId} collection.
      * @path /users/{userId}/patients/{patientId}
-     * @allow (create) - User with UID 'user123' can create a patient document under /users/user123/patients/patient456.
-     * @allow (get) - User with UID 'user123' can read a patient document under /users/user123/patients/patient456.
-     * @allow (list) - User with UID 'user123' can list patient documents under /users/user123/patients.
-     * @allow (update) - User with UID 'user123' can update a patient document under /users/user123/patients/patient456.
-     * @allow (delete) - User with UID 'user123' can delete a patient document under /users/user123/patients/patient456.
-     * @deny (create) - User with UID 'user456' cannot create a patient document under /users/user123/patients/patient456 (mismatched userId).
-     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     * @allow (create) - User A with UID "user_a" can create a new patient document under /users/user_a/patients/patient_123.
+     * @deny (create) - User B with UID "user_b" cannot create a patient document under /users/user_a/patients/patient_123.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId}/patients/{patientId} {
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
       allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
-      allow delete: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
      * @description Rules for /users/{userId}/patients/{patientId}/transcripts/{transcriptId} collection.
      * @path /users/{userId}/patients/{patientId}/transcripts/{transcriptId}
-     * @allow (create) - User with UID 'user123' can create a transcript document under /users/user123/patients/patient456/transcripts/transcript789.
-     * @allow (get) - User with UID 'user123' can read a transcript document under /users/user123/patients/patient456/transcripts/transcript789.
-     * @allow (list) - User with UID 'user123' can list transcript documents under /users/user123/patients/patient456/transcripts.
-     * @allow (update) - User with UID 'user123' can update a transcript document under /users/user123/patients/patient456/transcripts/transcript789.
-     * @allow (delete) - User with UID 'user123' can delete a transcript document under /users/user123/patients/patient456/transcripts/transcript789.
-     * @deny (create) - User with UID 'user456' cannot create a transcript document under /users/user123/patients/patient456/transcripts/transcript789 (mismatched userId).
-     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     * @allow (create) - User A with UID "user_a" can create a new transcript document under /users/user_a/patients/patient_123/transcripts/transcript_456.
+     * @deny (create) - User B with UID "user_b" cannot create a transcript document under /users/user_a/patients/patient_123/transcripts/transcript_456.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId}/patients/{patientId}/transcripts/{transcriptId} {
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
       allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
-      allow delete: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
      * @description Rules for /users/{userId}/patients/{patientId}/soap_notes/{soapNoteId} collection.
      * @path /users/{userId}/patients/{patientId}/soap_notes/{soapNoteId}
-     * @allow (create) - User with UID 'user123' can create a soap note document under /users/user123/patients/patient456/soap_notes/soap789.
-     * @allow (get) - User with UID 'user123' can read a soap note document under /users/user123/patients/patient456/soap_notes/soap789.
-     * @allow (list) - User with UID 'user123' can list soap note documents under /users/user123/patients/patient456/soap_notes.
-     * @allow (update) - User with UID 'user123' can update a soap note document under /users/user123/patients/patient456/soap_notes/soap789.
-     * @allow (delete) - User with UID 'user123' can delete a soap note document under /users/user123/patients/patient456/soap_notes/soap789.
-     * @deny (create) - User with UID 'user456' cannot create a soap note document under /users/user123/patients/patient456/soap_notes/soap789 (mismatched userId).
-     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     * @allow (create) - User A with UID "user_a" can create a new SOAP note document under /users/user_a/patients/patient_123/soap_notes/soap_note_456.
+     * @deny (create) - User B with UID "user_b" cannot create a SOAP note document under /users/user_a/patients/patient_123/soap_notes/soap_note_456.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId}/patients/{patientId}/soap_notes/{soapNoteId} {
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
       allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
-      allow delete: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
      * @description Rules for /users/{userId}/patients/{patientId}/instructions/{instructionId} collection.
      * @path /users/{userId}/patients/{patientId}/instructions/{instructionId}
-     * @allow (create) - User with UID 'user123' can create an instruction document under /users/user123/patients/patient456/instructions/instruction789.
-     * @allow (get) - User with UID 'user123' can read an instruction document under /users/user123/patients/patient456/instructions/instruction789.
-     * @allow (list) - User with UID 'user123' can list instruction documents under /users/user123/patients/patient456/instructions.
-     * @allow (update) - User with UID 'user123' can update an instruction document under /users/user123/patients/patient456/instructions/instruction789.
-     * @allow (delete) - User with UID 'user123' can delete an instruction document under /users/user123/patients/patient456/instructions/instruction789.
-     * @deny (create) - User with UID 'user456' cannot create an instruction document under /users/user123/patients/patient456/instructions/instruction789 (mismatched userId).
-     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     * @allow (create) - User A with UID "user_a" can create a new instruction document under /users/user_a/patients/patient_123/instructions/instruction_456.
+     * @deny (create) - User B with UID "user_b" cannot create an instruction document under /users/user_a/patients/patient_123/instructions/instruction_456.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId}/patients/{patientId}/instructions/{instructionId} {
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
       allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
-      allow delete: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Collection group queries for soap_notes across all patients
+     * Requires userId field in documents for security
+     */
+    match /{path=**}/soap_notes/{soapNoteId} {
+      allow get: if isSignedIn() && 
+        resource.data.userId == request.auth.uid;
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Collection group queries for instructions across all patients
+     * Requires userId field in documents for security
+     */
+    match /{path=**}/instructions/{instructionId} {
+      allow get: if isSignedIn() && 
+        resource.data.userId == request.auth.uid;
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
   }
 }

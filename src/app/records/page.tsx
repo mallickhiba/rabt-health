@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -21,7 +20,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { FileText } from 'lucide-react';
 import { useUser, useCollection, useMemoFirebase, useFirestore } from '@/firebase';
-import { collectionGroup, query } from 'firebase/firestore';
+import { collectionGroup, query, where } from 'firebase/firestore';
 import type { SoapNote, Instruction } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
@@ -52,7 +51,6 @@ function RecordRow({ record }: { record: Record }) {
   );
 }
 
-
 function TableSkeleton() {
     return (
         <div className="space-y-2">
@@ -69,12 +67,18 @@ export default function RecordsPage() {
 
     const soapNotesQuery = useMemoFirebase(() => {
         if (!user || !firestore) return null;
-        return query(collectionGroup(firestore, 'soap_notes'));
+        return query(
+            collectionGroup(firestore, 'soap_notes'),
+            where('userId', '==', user.uid)
+        );
     }, [user, firestore]);
 
     const instructionsQuery = useMemoFirebase(() => {
         if (!user || !firestore) return null;
-        return query(collectionGroup(firestore, 'instructions'));
+        return query(
+            collectionGroup(firestore, 'instructions'),
+            where('userId', '==', user.uid)
+        );
     }, [user, firestore]);
 
     const { data: soapNotes, isLoading: isLoadingNotes } = useCollection<SoapNote>(soapNotesQuery);

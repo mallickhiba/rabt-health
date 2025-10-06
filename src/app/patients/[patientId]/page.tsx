@@ -336,11 +336,11 @@ export default function PatientEncounterPage({ params: { patientId } }: { params
     const handleSaveSoapNote = () => {
         if (!soapNote || !user || !firestore || !patient) return;
         const soapNotesCollection = collection(firestore, `users/${user.uid}/patients/${patient.id}/soap_notes`);
-        const newNoteRef = doc(soapNotesCollection);
         
         addDocumentNonBlocking(soapNotesCollection, {
             ...soapNote,
             patientId: patient.id,
+            userId: user.uid, // Add this line
             createdAt: new Date().toISOString(),
         });
 
@@ -368,6 +368,7 @@ export default function PatientEncounterPage({ params: { patientId } }: { params
             const instructionsCollection = collection(firestore, `users/${user.uid}/patients/${patient.id}/instructions`);
             addDocumentNonBlocking(instructionsCollection, {
                 patientId: patient.id,
+                userId: user.uid, // Add this line
                 text: generatedInstructions.clarifiedText,
                 sentAt: new Date().toISOString(),
                 method: 'WhatsApp',
