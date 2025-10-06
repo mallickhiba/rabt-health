@@ -15,92 +15,76 @@ export const metadata: Metadata = {
   description: 'A doctor-facing that breaks language barriers in Pakistani healthcare.',
 };
 
-function AppSidebar({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <SidebarProvider>
-      <Sidebar>
-        <SidebarContent>
-          <SidebarHeader>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-primary">
-                <Leaf className="w-5 h-5" />
-              </Button>
-              <div className="flex flex-col">
-                <h2 className="text-lg font-semibold tracking-tight">Rabt Health</h2>
-              </div>
-            </div>
-          </SidebarHeader>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <Link href="/dashboard">
-                  <Home />
-                  <span>Dashboard</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <Link href="/patients">
-                  <Users />
-                  <span>Patients</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <Link href="/records">
-                  <FileText />
-                  <span>Records</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-          <SidebarFooter>
-             <AuthLayout>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                     <SidebarMenuButton>
-                        <LogOut/>
-                        <span>Sign Out</span>
-                      </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-            </AuthLayout>
-          </SidebarFooter>
-        </SidebarContent>
-      </Sidebar>
-      <SidebarInset>
-        <header className="flex h-12 items-center justify-between border-b bg-background px-4 md:pl-2">
-          <SidebarTrigger />
-          <p className="font-semibold"></p>
-        </header>
-        <main className="flex-1 overflow-y-auto p-4">{children}</main>
-      </SidebarInset>
-    </SidebarProvider>
-  );
-}
-
-function AppWithAuth({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  const { user } = useUser();
-  return user ? <AppSidebar>{children}</AppSidebar> : <>{children}</>;
-}
-
-
 function AppProviders({ children }: { children: React.ReactNode }) {
   'use client';
+  const { user } = useUser();
+  
   return (
     <FirebaseClientProvider>
       <AuthLayout>
-        <AppWithAuth>{children}</AppWithAuth>
+        {user ? (
+           <SidebarProvider>
+            <Sidebar>
+              <SidebarContent>
+                <SidebarHeader>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-primary">
+                      <Leaf className="w-5 h-5" />
+                    </Button>
+                    <div className="flex flex-col">
+                      <h2 className="text-lg font-semibold tracking-tight">Rabt Health</h2>
+                    </div>
+                  </div>
+                </SidebarHeader>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <Link href="/dashboard">
+                        <Home />
+                        <span>Dashboard</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <Link href="/patients">
+                        <Users />
+                        <span>Patients</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <Link href="/records">
+                        <FileText />
+                        <span>Records</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+                <SidebarFooter>
+                  <SidebarMenu>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton>
+                          <LogOut/>
+                          <span>Sign Out</span>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </SidebarMenu>
+                </SidebarFooter>
+              </SidebarContent>
+            </Sidebar>
+            <SidebarInset>
+              <header className="flex h-12 items-center justify-between border-b bg-background px-4 md:pl-2">
+                <SidebarTrigger />
+                <p className="font-semibold"></p>
+              </header>
+              <main className="flex-1 overflow-y-auto p-4">{children}</main>
+            </SidebarInset>
+          </SidebarProvider>
+        ) : (
+          <>{children}</>
+        )}
       </AuthLayout>
     </FirebaseClientProvider>
   )
