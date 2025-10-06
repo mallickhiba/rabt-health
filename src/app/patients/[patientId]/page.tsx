@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import {
   ArrowRightLeft,
   LoaderCircle,
@@ -340,7 +340,7 @@ export default function PatientEncounterPage({ params: { patientId } }: { params
         addDocumentNonBlocking(soapNotesCollection, {
             ...soapNote,
             patientId: patient.id,
-            userId: user.uid, // Add this line
+            userId: user.uid,
             createdAt: new Date().toISOString(),
         });
 
@@ -368,7 +368,7 @@ export default function PatientEncounterPage({ params: { patientId } }: { params
             const instructionsCollection = collection(firestore, `users/${user.uid}/patients/${patient.id}/instructions`);
             addDocumentNonBlocking(instructionsCollection, {
                 patientId: patient.id,
-                userId: user.uid, // Add this line
+                userId: user.uid,
                 text: generatedInstructions.clarifiedText,
                 sentAt: new Date().toISOString(),
                 method: 'WhatsApp',
