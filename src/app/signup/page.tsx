@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useAuth, initiateEmailSignUp } from '@/firebase';
+import { useAuth } from '@/firebase';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { Leaf, LoaderCircle } from 'lucide-react';

@@ -8,7 +8,7 @@ type AuthLayoutProps = {
   children: ReactNode;
 };
 
-const protectedRoutes = ['/dashboard', '/patients', '/records'];
+const protectedRoutes = ['/dashboard', '/patients'];
 const publicRoutes = ['/login', '/signup'];
 
 export function AuthLayout({ children }: AuthLayoutProps) {
@@ -29,8 +29,8 @@ export function AuthLayout({ children }: AuthLayoutProps) {
     }
   }, [user, isUserLoading, router, pathname]);
   
-  if (isUserLoading) {
-      return null; // Or a loading component
+  if (isUserLoading && protectedRoutes.some(p => pathname.startsWith(p))) {
+      return null; // Or a loading component for protected routes
   }
 
   return <>{children}</>;

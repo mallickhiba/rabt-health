@@ -7,10 +7,13 @@ import { initializeFirebase, useAuth } from '@/firebase';
 import { AuthLayout } from '@/components/auth/AuthLayout';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Leaf, LogOut, Users } from 'lucide-react';
+import { Home, Leaf, LogOut, Users, User as UserIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+
 
 interface FirebaseClientProviderProps {
   children: ReactNode;
@@ -26,6 +29,19 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       router.push('/login');
     });
   };
+  
+  const getDisplayName = () => {
+    if (!user) return '';
+    if (user.isAnonymous) return 'Guest';
+    return user.email;
+  }
+  
+  const getInitials = () => {
+    if (!user) return '';
+    if (user.isAnonymous) return 'G';
+    return user.email?.charAt(0).toUpperCase() ?? 'U';
+  }
+
 
   return (
     <AuthLayout>
@@ -76,7 +92,26 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           <SidebarInset>
             <header className="flex h-12 items-center justify-between border-b bg-background px-4 md:pl-2">
               <SidebarTrigger />
-              <p className="font-semibold"></p>
+              <div className="flex items-center gap-4">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="flex items-center gap-2">
+                             <Avatar className="h-8 w-8">
+                                <AvatarFallback>{getInitials()}</AvatarFallback>
+                            </Avatar>
+                            <span>{getDisplayName()}</span>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={handleSignOut}>
+                            <LogOut className="mr-2 h-4 w-4" />
+                            <span>Sign Out</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </header>
             <main className="flex-1 overflow-y-auto p-4">{children}</main>
           </SidebarInset>
