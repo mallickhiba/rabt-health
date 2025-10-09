@@ -61,11 +61,17 @@ function RecordRow({ record }: { record: Record }) {
 
 function TableSkeleton() {
     return (
-        <div className="space-y-2">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-        </div>
+        <>
+            <TableRow>
+                <TableCell colSpan={5}><Skeleton className="h-10 w-full" /></TableCell>
+            </TableRow>
+            <TableRow>
+                <TableCell colSpan={5}><Skeleton className="h-10 w-full" /></TableCell>
+            </TableRow>
+            <TableRow>
+                <TableCell colSpan={5}><Skeleton className="h-10 w-full" /></TableCell>
+            </TableRow>
+        </>
     )
 }
 
@@ -123,13 +129,7 @@ export default function RecordsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-             {showLoading && (
-                <TableRow>
-                    <TableCell colSpan={5}>
-                         <TableSkeleton />
-                    </TableCell>
-                </TableRow>
-            )}
+             {showLoading && <TableSkeleton />}
             {!showLoading && records && records.length > 0 && (
                 records.map((record) => <RecordRow key={`${record.type}-${record.id}`} record={record} />)
             )}
