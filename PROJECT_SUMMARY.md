@@ -31,3 +31,4 @@
     *   **Genkit:** A framework from Google for building production-ready AI flows.
     *   **Google's Gemini Models:** Used for advanced reasoning tasks like SOAP note generation and instruction clarification.
     *   **ElevenLabs API:** Utilized for high-quality, real-time speech-to-text and multilingual text-to-speech capabilities.
+    *   **WhatsApp API:** To send text and audio instructions directly to patients.
