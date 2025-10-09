@@ -28,8 +28,15 @@ import { format } from 'date-fns';
 
 type Record = (SoapNote & { type: 'SOAP Note' }) | (Instruction & { type: 'Instruction' });
 
+const getRecordDate = (record: Record): string => {
+    if (record.type === 'SOAP Note') {
+        return record.createdAt;
+    }
+    return record.sentAt;
+}
+
 function RecordRow({ record }: { record: Record }) {
-  const date = record.createdAt || record.sentAt;
+  const date = getRecordDate(record);
   return (
     <TableRow>
       <TableCell className="font-medium">{record.id.substring(0, 6)}...</TableCell>
@@ -89,8 +96,8 @@ export default function RecordsPage() {
         ...(soapNotes || []).map(note => ({ ...note, type: 'SOAP Note' as const })),
         ...(instructions || []).map(inst => ({ ...inst, type: 'Instruction' as const }))
     ].sort((a, b) => {
-        const dateA = new Date(a.createdAt || a.sentAt).getTime();
-        const dateB = new Date(b.createdAt || b.sentAt).getTime();
+        const dateA = new Date(getRecordDate(a)).getTime();
+        const dateB = new Date(getRecordDate(b)).getTime();
         return dateB - dateA;
     });
 
