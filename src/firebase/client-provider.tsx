@@ -2,17 +2,19 @@
 'use client';
 
 import React, { useMemo, type ReactNode } from 'react';
-import { FirebaseProvider, useUser } from '@/firebase/provider';
-import { initializeFirebase, useAuth } from '@/firebase';
+import { FirebaseProvider } from '@/firebase/provider';
+import { initializeFirebase, useAuth, useDoc, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import { AuthLayout } from '@/components/auth/AuthLayout';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Leaf, LogOut, Users, User as UserIcon } from 'lucide-react';
+import { Home, Leaf, LogOut, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { doc } from 'firebase/firestore';
+import type { UserProfile } from '@/lib/types';
 
 
 interface FirebaseClientProviderProps {
@@ -22,7 +24,15 @@ interface FirebaseClientProviderProps {
 function AppLayout({ children }: { children: React.ReactNode }) {
   const { user } = useUser();
   const auth = useAuth();
+  const firestore = useFirestore();
   const router = useRouter();
+
+  const userProfileRef = useMemoFirebase(() => {
+    if (!user || user.isAnonymous || !firestore) return null;
+    return doc(firestore, `users/${user.uid}`);
+  }, [user, firestore]);
+
+  const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
 
   const handleSignOut = () => {
     signOut(auth).then(() => {
@@ -32,13 +42,15 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   
   const getDisplayName = () => {
     if (!user) return '';
-    if (user.isAnonymous) return 'Guest';
+    if (user.isAnonymous) return 'Guest User';
+    if (userProfile) return `${userProfile.firstName} ${userProfile.lastName}`;
     return user.email;
   }
   
   const getInitials = () => {
     if (!user) return '';
     if (user.isAnonymous) return 'G';
+    if (userProfile) return `${userProfile.firstName.charAt(0)}${userProfile.lastName.charAt(0)}`;
     return user.email?.charAt(0).toUpperCase() ?? 'U';
   }
 
@@ -99,7 +111,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                              <Avatar className="h-8 w-8">
                                 <AvatarFallback>{getInitials()}</AvatarFallback>
                             </Avatar>
-                            <span>{getDisplayName()}</span>
+                            <span className="hidden sm:inline-block">{getDisplayName()}</span>
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">

@@ -1,5 +1,36 @@
 {
   "entities": {
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Represents an app user's profile information.",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The user's unique ID, matching their Firebase Auth UID."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The user's first name."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The user's last name."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The user's email address."
+        },
+        "designation": {
+          "type": "string",
+          "description": "The user's professional designation.",
+          "enum": ["doctor", "nurse", "student"]
+        }
+      },
+      "required": ["uid", "firstName", "lastName", "email", "designation"]
+    },
     "Patient": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Patient",
@@ -163,13 +194,29 @@
   "firestore": {
     "structure": [
       {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores public profile information for each user. The document ID is the user's Firebase Auth UID.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The ID of the user. (request.auth.uid)"
+            }
+          ]
+        }
+      },
+      {
         "path": "/users/{userId}/patients/{patientId}",
         "definition": {
           "entityName": "Patient",
           "schema": {
             "$ref": "#/backend/entities/Patient"
           },
-          "description": "Stores patient information.  Path-based ownership is enforced via the userId.  The userId param is equal to request.auth().uid",
+          "description": "Stores patient information. Path-based ownership is enforced via the userId. The userId param is equal to request.auth().uid",
           "params": [
             {
               "name": "userId",
@@ -255,6 +302,6 @@
         }
       }
     ],
-    "reasoning": "The data structure is designed to manage patient information, transcripts, SOAP notes, and instructions, ensuring data isolation and efficient querying. Each patient has their own set of subcollections for transcripts, SOAP notes, and instructions, which allows for easy retrieval of all related data for a specific patient. This structure uses path-based ownership (`/users/{userId}/patients/{patientId}`) for patient data, providing clear ownership and simplifies security rules.\n\nTo achieve Authorization Independence, patient data is stored under a user-specific path (`/users/{userId}/patients/{patientId}`), with userId corresponding to `request.auth.uid`. This eliminates the need for `get()` calls in security rules. Each subcollection (transcripts, soap_notes, instructions) resides under the patient document, ensuring that all data related to a patient is isolated and accessible only to the authorized user. The `patientId` in each subcollection document (transcript, soap note, and instruction) reinforces this association.\n\nTo support QAPs, the structure avoids mixing data with different access needs in the same collection. Each user's patient data is segregated under their respective user ID. Listing operations are secure because rules can easily enforce that a user can only access patients and related data under their own user ID. The use of hierarchical paths further simplifies secure listing, reading, and writing operations.\n\nThe structure supports integrity by ensuring that each transcript, SOAP note, and instruction is explicitly linked to a patient via the `patientId` field, enforcing a clear 1:N relationship. Timestamps (`createdAt`, `sentAt`) are included for proper ordering and tracking of events."
+    "reasoning": "The data structure is designed to manage user profiles, patient information, transcripts, SOAP notes, and instructions, ensuring data isolation and efficient querying. Each user has a profile document. Each patient, owned by a user, has their own set of subcollections for transcripts, SOAP notes, and instructions, which allows for easy retrieval of all related data for a specific patient. This structure uses path-based ownership (`/users/{userId}/...`) for all user-related data, providing clear ownership and simplifies security rules.\n\nTo achieve Authorization Independence, all data is stored under a user-specific path (`/users/{userId}/...`), with userId corresponding to `request.auth.uid`. This eliminates the need for `get()` calls in security rules. Each subcollection (patients, transcripts, soap_notes, instructions) resides under a user-specific path, ensuring that all data is isolated and accessible only to the authorized user.\n\nTo support QAPs, the structure avoids mixing data with different access needs in the same collection. Each user's data is segregated under their respective user ID. Listing operations are secure because rules can easily enforce that a user can only access patients and related data under their own user ID. The use of hierarchical paths further simplifies secure listing, reading, and writing operations.\n\nThe structure supports integrity by ensuring that each patient, transcript, SOAP note, and instruction is explicitly linked to a user via the path. Timestamps (`createdAt`, `sentAt`) are included for proper ordering and tracking of events."
   }
 }
