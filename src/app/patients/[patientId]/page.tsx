@@ -15,6 +15,9 @@ import {
   Save,
   Sparkles,
   Send,
+  History,
+  MessageSquareText,
+  FilePlus,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
@@ -25,6 +28,7 @@ import { generateSoapNote, GenerateSoapNoteOutput } from "@/ai/flows/generate-so
 import { clarifyAndGenerateInstructions, ClarifyAndGenerateInstructionsOutput } from "@/ai/flows/clarify-instructions";
 import { sendWhatsAppMessage } from "@/ai/flows/send-whatsapp-message";
 import { languages } from "@/lib/languages";
+import { format } from 'date-fns';
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardFooter, CardTitle, CardDescription } from "@/components/ui/card";
@@ -43,11 +47,12 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { useUser, useDoc, useMemoFirebase, useFirestore } from "@/firebase";
-import { doc, collection } from 'firebase/firestore';
+import { useUser, useDoc, useMemoFirebase, useFirestore, useCollection } from "@/firebase";
+import { doc, collection, query, orderBy } from 'firebase/firestore';
 import type { Patient, SoapNote, Instruction } from '@/lib/types';
 import { Skeleton } from "@/components/ui/skeleton";
 import { addDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 type Speaker = "Patient" | "Doctor";
 type Message = {
@@ -67,6 +72,13 @@ const doctorData = {
     languageCode: "eng"
 }
 
+type RecordItem = (SoapNote & { type: 'SOAP Note' }) | (Instruction & { type: 'Instruction' });
+
+const getRecordDate = (record: RecordItem): string => {
+    return record.type === 'SOAP Note' ? record.createdAt : record.sentAt;
+};
+
+
 export default function PatientEncounterPage() {
     const params = useParams();
     const patientId = params.patientId as string;
@@ -80,6 +92,20 @@ export default function PatientEncounterPage() {
     }, [user, firestore, patientId]);
     
     const {data: patient, isLoading: isPatientLoading } = useDoc<Patient>(patientRef);
+    
+    const soapNotesQuery = useMemoFirebase(() => {
+        if (!user?.uid || !firestore || !patientId) return null;
+        return query(collection(firestore, `users/${user.uid}/patients/${patientId}/soap_notes`), orderBy('createdAt', 'desc'));
+    }, [user?.uid, firestore, patientId]);
+
+    const instructionsQuery = useMemoFirebase(() => {
+        if (!user?.uid || !firestore || !patientId) return null;
+        return query(collection(firestore, `users/${user.uid}/patients/${patientId}/instructions`), orderBy('sentAt', 'desc'));
+    }, [user?.uid, firestore, patientId]);
+
+    const { data: soapNotes, isLoading: isLoadingNotes } = useCollection<SoapNote>(soapNotesQuery);
+    const { data: instructions, isLoading: isLoadingInstructions } = useCollection<Instruction>(instructionsQuery);
+
 
     const [patientLang, setPatientLang] = useState(patient?.language ?? "pus");
     const [doctorLang, setDoctorLang] = useState(doctorData.languageCode);
@@ -102,6 +128,11 @@ export default function PatientEncounterPage() {
     const [instructionLanguage, setInstructionLanguage] = useState(patient?.language ?? "pus");
 
     const conversationEndRef = useRef<HTMLDivElement>(null);
+    
+    const records: RecordItem[] = [
+        ...(soapNotes || []).map(note => ({ ...note, type: 'SOAP Note' as const })),
+        ...(instructions || []).map(inst => ({ ...inst, type: 'Instruction' as const }))
+    ].sort((a, b) => new Date(getRecordDate(b)).getTime() - new Date(getRecordDate(a)).getTime());
 
     useEffect(() => {
         if (patient) {
@@ -570,10 +601,11 @@ export default function PatientEncounterPage() {
             </Card>
 
             <Tabs defaultValue="translation">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="translation"><Languages className="mr-2 h-4 w-4" /> Translation</TabsTrigger>
                     <TabsTrigger value="soap"><FileText className="mr-2 h-4 w-4" /> SOAP Notes</TabsTrigger>
                     <TabsTrigger value="instructions"><Send className="mr-2 h-4 w-4" /> Instructions</TabsTrigger>
+                    <TabsTrigger value="history"><History className="mr-2 h-4 w-4" /> History</TabsTrigger>
                 </TabsList>
                 <TabsContent value="translation">
                      <Card className="flex flex-col h-[600px]">
@@ -785,14 +817,87 @@ export default function PatientEncounterPage() {
                         )}
                     </Card>
                 </TabsContent>
+                <TabsContent value="history">
+                     <Card>
+                        <CardHeader>
+                            <CardTitle>Patient History</CardTitle>
+                            <CardDescription>
+                                View past SOAP notes and instructions sent to this patient.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {isLoadingNotes || isLoadingInstructions ? (
+                                <div className="space-y-4">
+                                    <Skeleton className="h-24 w-full" />
+                                    <Skeleton className="h-24 w-full" />
+                                </div>
+                            ) : records.length === 0 ? (
+                                <div className="text-center text-muted-foreground py-12">
+                                    <History className="mx-auto h-12 w-12" />
+                                    <p className="mt-4 font-semibold">No Records Found</p>
+                                    <p className="text-sm">There are no saved SOAP notes or sent instructions for this patient yet.</p>
+                                </div>
+                            ) : (
+                                <Accordion type="single" collapsible className="w-full">
+                                    {records.map(record => (
+                                        <AccordionItem value={record.id} key={record.id}>
+                                            <AccordionTrigger>
+                                                <div className="flex items-center gap-4">
+                                                     <Badge variant={record.type === 'SOAP Note' ? 'secondary' : 'default'}>
+                                                        {record.type === 'SOAP Note' ? <FilePlus className="mr-2"/> : <MessageSquareText className="mr-2"/>}
+                                                        {record.type}
+                                                    </Badge>
+                                                    <span className="text-sm text-muted-foreground">{format(new Date(getRecordDate(record)), "PPP p")}</span>
+                                                </div>
+                                            </AccordionTrigger>
+                                            <AccordionContent>
+                                                {record.type === 'SOAP Note' ? (
+                                                    <div className="space-y-4 p-2">
+                                                         <div className="space-y-1">
+                                                            <h4 className="font-semibold">Subjective</h4>
+                                                            <p className="text-sm text-muted-foreground">{record.subjective}</p>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <h4 className="font-semibold">Objective</h4>
+                                                            <p className="text-sm text-muted-foreground">{record.objective}</p>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <h4 className="font-semibold">Assessment</h4>
+                                                            <p className="text-sm text-muted-foreground">{record.assessment}</p>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <h4 className="font-semibold">Plan</h4>
+                                                            <p className="text-sm text-muted-foreground">{record.plan}</p>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-4 p-2">
+                                                        <div className="space-y-1">
+                                                            <h4 className="font-semibold">Instruction Sent</h4>
+                                                            <p className="text-sm text-muted-foreground">{record.text}</p>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <h4 className="font-semibold">Details</h4>
+                                                             <p className="text-sm text-muted-foreground">
+                                                                Method: {record.method} | Language: {languages.find(l => l.code === record.language)?.name || record.language}
+                                                            </p>
+                                                        </div>
+                                                         {record.audioDataUri && (
+                                                            <div>
+                                                                <audio controls src={record.audioDataUri} className="w-full"></audio>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    ))}
+                                </Accordion>
+                            )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
             </Tabs>
         </div>
     );
 }
-
-    
-
-    
-
-    
-

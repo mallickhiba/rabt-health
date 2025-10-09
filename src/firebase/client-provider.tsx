@@ -7,7 +7,7 @@ import { initializeFirebase, useAuth } from '@/firebase';
 import { AuthLayout } from '@/components/auth/AuthLayout';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { FileText, Home, Leaf, LogOut, Users } from 'lucide-react';
+import { Home, Leaf, LogOut, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
@@ -57,14 +57,6 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                     <Link href="/patients">
                       <Users />
                       <span>Patients</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/records">
-                      <FileText />
-                      <span>Records</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
