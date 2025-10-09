@@ -23,14 +23,11 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           <p className="mb-4">
-            Start a new patient encounter, manage your existing patients, or review past records.
+            Start a new patient encounter or manage your existing patients.
           </p>
           <div className="flex gap-2">
             <Button asChild>
                 <Link href="/patients">Manage Patients</Link>
-            </Button>
-             <Button asChild variant="outline">
-                <Link href="/records">View All Records</Link>
             </Button>
           </div>
         </CardContent>
